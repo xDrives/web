@@ -6,7 +6,7 @@ class AuthModule {
     constructor() {
         // Firebase configuration
         this.masterConfig = { 
-            databaseURL: "https://pribox-apps-default-rtdb.europe-west1.firebasedatabase.app/" 
+            databaseURL: "https://admin-efcf4-default-rtdb.europe-west1.firebasedatabase.app/" 
         };
         
         this.masterApp = null;
