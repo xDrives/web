@@ -1,0 +1,1852 @@
+/* ========== 1. CONTAINER & LAYOUT ========== */
+/* Photos Styles Module */
+.photos-container {
+    padding: 0;
+    width: 100%;
+    margin: 0;
+}
+
+/* Albums Section */
+.albums-section {
+    margin-bottom: 8px;
+}
+
+.photo-section-header {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+
+/* Ensure section title info and album actions are aligned on the same row */
+.section-title-info {
+}
+
+/* Album actions container - stays on same row as title */
+.album-actions {
+    padding: 4px;
+}
+
+.photo-section-header h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+
+
+/* Album Section Header with Description */
+.section-description {
+    color: var(--text);
+    font-size: 0.65rem;
+    margin-top: 4px;
+    font-style: italic;
+}
+
+/* Ensure the header row stays aligned */
+.albums-section .photo-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+
+/* ========== 2. ALBUMS ========== */
+.albums-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 8px;
+}
+
+
+/* Album card without delete button */
+.album-card {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+    cursor: pointer;
+    position: relative;
+}
+
+/* Active album card */
+.album-card.active {
+    background: rgba(59, 130, 246, 0.05);
+    position: relative;
+}
+
+.album-header {
+    position: relative;
+    margin-bottom: 4px;
+}
+
+.album-cover {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    border: 2.5px solid;
+    font-size: 1.5rem;
+}
+
+/* Album card overflow handling */
+.album-card .album-info {
+    overflow: hidden;
+    width: 100%;
+}
+
+.album-card .album-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+}
+
+.album-info {
+    text-align: center;
+}
+
+.album-name {
+    font-size: 0.55rem;
+}
+
+.album-count {
+    font-size: 0.5rem;
+}
+
+
+
+.no-albums-message {
+    text-align: center;
+    padding: 16px;
+    color: var(--text);
+    font-style: italic;
+}
+
+/* Add these styles to photos-styles.css */
+.already-in-album {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.album-radio:disabled + .album-select-info {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Remove the default blur from CSS since we're now controlling it via JS */
+.photo-thumbnail img {
+    filter: none; /* Remove the default blur from CSS */
+    transition: filter 0.3s ease;
+}
+
+
+/* Also ensure photos in album selection and preview are not blurred */
+.checkbox-thumbnail,
+.preview-item img,
+.album-select-icon i {
+    filter: none !important;
+}
+
+
+/* ========== 3. PHOTOS GRID ========== */
+
+/* Adjust photos grid for date grouping */
+.photos-grid {
+    display: grid;
+    gap: 0;
+}
+
+.photo-card {
+    background: transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    aspect-ratio: 1;
+}
+
+.photo-thumbnail {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.photo-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.photo-overlay {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    z-index: 2;
+}
+
+.photo-overlay .favorite-btn.favorite {
+    color: #f59e0b;
+    background: transparent;
+}
+
+.photo-overlay .btn-icon {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.photo-meta {
+    margin-bottom: 8px;
+}
+
+.favorite-badge {
+    color: #f59e0b;
+    font-size: 0.65rem;
+    background: rgba(245, 158, 11, 0.2);
+    padding: 4px 6px;
+    border-radius: 8px;
+    margin-right: 4px;
+}
+
+.favorite-badge i {
+    margin-right: 4px;
+}
+
+
+
+/* ========== 4. DATE GROUPING ========== */
+
+/* Date Grouping Styles */
+.date-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 8px 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    grid-column: 1 / -1;
+}
+
+.date-group-title {
+    font-size: .65rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+.date-group-count {
+    margin-right: 8px;
+    color: var(--text);
+    font-size: 0.65rem;
+}
+
+.date-group-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 4px;
+    grid-column: 1 / -1;
+    margin-bottom: 12px;
+}
+
+
+/* ========== 5. MODALS ========== */
+
+/* Zoom Photo Modal */
+.photo-view-modal {
+    background: transparent;
+    z-index: 1000;
+}
+
+.photo-modal-content {
+    width: 80vw !important;
+    height: 90vh;
+    background: transparent;
+    border: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.photo-modal-header {
+    background: var(--body);
+    border: 1px solid var(--border);
+    border-radius: 2px 2px 12px 12px;
+    color: var(--text);
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 12px;
+    flex-shrink: 0;
+    margin-bottom: 8px;
+}
+
+.photo-modal-footer {
+    background: var(--body);
+    border: 1px solid var(--border);
+    border-radius: 2px 2px 12px 12px;
+    color: var(--text);
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    padding: 12px;
+    flex-shrink: 0;
+    margin-top: 8px;
+}
+
+.photo-title-info h3 {
+    color: var(--text);
+    margin: 0 0 4px 0;
+    font-size: 1rem;
+    max-width: 400px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.photo-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 0.75rem;
+    color: var(--neutral);
+}
+
+.favorite-badge-modal {
+    color: #f59e0b;
+}
+
+.photo-modal-actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    justify-content: flex-end;
+}
+
+.photo-modal-actions .btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.photo-modal-body {
+    padding: 0;
+    background: transparent;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Confirmation modal enhancement */
+#confirmDeleteModal .modal-body .icon-container {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+#confirmDeleteModal .warning-icon {
+    font-size: 48px;
+    color: #ef4444;
+}
+
+#confirmDeleteModal .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 24px;
+}
+
+#confirmDeleteModal .btn-danger {
+    background: #dc2626;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+}
+
+#confirmDeleteModal .btn-secondary {
+    background: var(--surface-alt, #2d2d3a);
+    color: var(--text, #fff);
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    padding: 8px 20px;
+}
+
+/* Photo Description Styles */
+.photo-description-container {
+    margin-top: 8px;
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+}
+
+.photo-description-input {
+    width: 100%;
+    padding: 4px 6px;
+    padding-right: 70px; /* Space for char count */
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 0.65rem;
+    transition: all 0.3s ease;
+}
+
+.photo-description-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.photo-description-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.description-char-count {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.6);
+    pointer-events: none;
+}
+
+/* Update photo meta spacing */
+.photo-title-info .photo-meta {
+    margin-bottom: 5px;
+}
+
+
+
+
+/* ========== 7. BATCH MODE ========== */
+
+/* Batch Selection Styles */
+.batch-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 8px;
+}
+
+.selection-count {
+    font-size: 0.75rem;
+    color: var(--text);
+    background: var(--surface-alt);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+
+#batchModeBtn.active {
+    background: var(--primary);
+    color: var(--text);
+    border-color: var(--primary);
+}
+
+#batchModeBtn.active i {
+    color: var(--text);
+}
+
+.photo-selection {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 3;
+}
+
+.photo-select-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 2px solid var(--border);
+    background: rgba(0, 0, 0, 0.5);
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.photo-select-checkbox:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+    position: relative;
+}
+
+.photo-select-checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    color: var(--border);
+    font-size: 14px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Adjust overlay for batch mode */
+.photo-overlay {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 8px;
+}
+
+
+
+#batchActions {
+    animation: slideIn 0.3s ease;
+}
+
+
+/* ========== 8. LOADING OVERLAY ========== */
+
+.photos-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.photos-loading-content {
+    background: var(--card-bg, #1e1e2f);
+    border-radius: 16px;
+    padding: 32px 40px;
+    text-align: center;
+    min-width: 280px;
+    max-width: 360px;
+    box-shadow: 0 20px 35px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    animation: slideUp 0.3s ease;
+}
+
+.photos-loading-spinner {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 20px;
+    border: 3px solid rgba(59, 130, 246, 0.2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+
+
+.photos-loading-message {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 16px;
+    letter-spacing: 0.3px;
+}
+
+.photos-loading-progress {
+    width: 100%;
+    height: 4px;
+    background: rgba(59, 130, 246, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 16px 0 12px;
+}
+
+.photos-loading-progress-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.photos-loading-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shine 1.5s infinite;
+}
+
+
+.photos-loading-detail {
+    font-size: 0.7rem;
+    color: var(--text);
+    margin-top: 8px;
+    font-family: monospace;
+    letter-spacing: 0.3px;
+}
+
+/* Optional: Add pulsing effect for critical operations */
+.photos-loading-critical .photos-loading-spinner {
+    border-top-color: #ef4444;
+}
+
+.photos-loading-critical .photos-loading-progress-fill {
+    background: linear-gradient(90deg, #ef4444, #f97316);
+}
+
+
+
+.photo-zoom-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    cursor: zoom-in;
+}
+
+.zoomable-photo {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+}
+
+
+/* View Options */
+.view-options {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.view-info {
+    color: var(--text);
+    font-size: 0.65rem;
+}
+
+/* Empty State */
+.empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 8px;
+    color: var(--text);
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 2px dashed var(--border);
+    margin: 8px 0;
+}
+
+.empty-state-icon {
+    font-size: 2rem;
+    margin-bottom: 4px;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    font-size: 1rem;
+    margin-bottom: 4px;
+    color: var(--text);
+}
+
+.empty-state p {
+    font-size: 0.5rem;
+    margin-bottom: 4px;
+}
+
+
+
+
+/* File counter badge */
+.file-counter {
+    display: inline-block;
+    background: var(--primary);
+    color: var(--text);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    margin-left: 8px;
+}
+
+
+.processing {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+
+/* File counter badge */
+.file-counter {
+    display: inline-block;
+    background: var(--primary);
+    color: var(--text);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    margin-left: 8px;
+}
+
+
+
+
+/* ========== 9. ANIMATIONS ========== */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes shine {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes progress-shine {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Animation for batch actions */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Animation for processing */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+
+
+
+
+
+
+
+
+/* ========== ADD TO ALBUM PANEL (Inline in Photo Modal) ========== */
+
+/* Add to Album Panel Container */
+.add-to-album {
+    position: relative;
+    background: transparent;
+    flex-direction: column;
+    gap: 12px;
+    animation: slideUp 0.3s ease;
+}
+
+/* Albums List Container */
+.albums-list {
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    border-radius: 8px;
+    background: var(--surface-alt, rgba(255,255,255,0.05));
+    margin-top: 8px;
+}
+
+/* Scrollbar styling for albums list */
+.albums-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.albums-list::-webkit-scrollbar-track {
+    background: var(--border, rgba(255,255,255,0.05));
+    border-radius: 3px;
+}
+
+.albums-list::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+}
+
+
+/* Album Icon */
+.album-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.album-icon i {
+    font-size: 20px;
+}
+
+/* Album Info */
+.album-info {
+    flex: 1;
+}
+
+.album-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.album-count {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #9ca3af);
+}
+
+/* Album Check (for photos already in album) */
+.album-check {
+    flex-shrink: 0;
+}
+
+.album-check i {
+    font-size: 20px;
+    color: #10b981;
+}
+
+/* Album Add button */
+.album-add {
+    flex-shrink: 0;
+}
+
+.album-add i {
+    font-size: 18px;
+    color: var(--primary);
+    transition: transform 0.2s ease;
+}
+
+
+/* No albums message */
+.no-albums-message {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-secondary, #9ca3af);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+/* Hidden input styling (not visible) */
+#deactivateDuration {
+    display: none;
+}
+
+
+
+/* ========== DELETE PHOTO CONFIRMATION PANEL (Inline in Photo Modal) ========== */
+
+/* Delete Confirmation Panel Container */
+.photo-delete {
+    position: relative;
+    background: transparent;
+    flex-direction: column;
+    gap: 12px;
+    animation: slideUp 0.3s ease, warningPulse 0.5s ease;
+}
+
+/* Warning additional text (optional) */
+.photo-confirmation-warning {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 3px solid #ef4444;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    color: #fca5a5;
+}
+
+.photo-confirmation-warning i {
+    margin-right: 6px;
+    color: #ef4444;
+}
+
+/* Action Buttons Container */
+.photo-confirmation-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(239, 68, 68, 0.2);
+    margin-top: 4px;
+}
+
+
+
+
+/* Animation Keyframes */
+@keyframes warningPulse {
+    0% {
+        border-color: rgba(239, 68, 68, 0.3);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        border-color: rgba(239, 68, 68, 0.8);
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+    }
+    100% {
+        border-color: rgba(239, 68, 68, 0.3);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+}
+
+
+/* Loading state for delete button */
+.photo-confirmation-actions .btn-warning i.fa-spinner,
+.photo-confirmation-actions .btn-warning i.fa-spin {
+    animation: spin 0.8s linear infinite;
+}
+
+
+
+
+/* ========== DELETE ALBUM CONFIRMATION PANEL (Inline in Album Modal) ========== */
+
+/* Delete Album Confirmation Container */
+.album-delete-confirmation {
+    position: relative;
+    background: transparent;
+    margin: 16px 0;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Delete Content Wrapper */
+.album-delete-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Delete Message */
+.album-delete-content > p {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--text);
+    margin: 0;
+    line-height: 1.5;
+}
+
+
+/* Warning Text */
+.album-delete-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid var(--primary);
+    border-radius: 8px;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #9ca3af);
+    margin-top: 8px;
+}
+
+.album-delete-warning i {
+    font-size: 16px;
+    color: var(--primary);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.album-delete-warning span {
+    flex: 1;
+    line-height: 1.4;
+}
+
+/* Action Buttons Container */
+.album-delete-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+
+/* Animation Keyframes */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes warningPulse {
+    0% {
+        border-color: rgba(239, 68, 68, 0.3);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        border-color: rgba(239, 68, 68, 0.8);
+        box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+    }
+    100% {
+        border-color: rgba(239, 68, 68, 0.3);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+}
+
+
+
+/* Loading state for delete button */
+.btn-danger i.fa-spinner,
+.btn-danger i.fa-spin {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* When form groups are hidden during delete confirmation */
+.album-modal .form-group.hide-for-delete {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+
+/* Modal adjustment when delete confirmation is shown */
+#albumModal .modal-actions {
+    transition: opacity 0.3s ease;
+}
+
+#albumModal .modal-actions.hide-for-delete {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+
+
+
+.photo-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    background: var(--body);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-size: 0.65rem;
+    color: var(--text);
+    margin-right: 12px;
+    cursor: default;
+}
+
+.photo-count-badge i {
+    color: var(--primary);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ========== UPLOAD SECTION STYLES - FULL WIDTH FIX ========== */
+
+/* Upload Section Container - Full Width */
+.upload-section {
+    background: var(--card-bg, #1e1e2f);
+    border-radius: 8px;
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    overflow: hidden;
+    animation: slideDown 0.3s ease;
+    width: 100%;
+    margin: 8px 0;
+    box-sizing: border-box;
+}
+
+/* Upload Content - Full Width */
+.upload-content {
+    padding: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Upload Header - Full Width */
+.upload-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.upload-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+/* Upload Body - Full Width */
+.upload-body {
+    margin-bottom: 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.upload-header p {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #9ca3af);
+    word-wrap: break-word;
+}
+
+.upload-header i {
+    margin-right: 8px;
+    color: var(--primary);
+}
+
+/* Upload Area - Full Width */
+.upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 4px;
+    padding: 8px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: var(--card-bg);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.upload-icon {
+    font-size: 16px;
+    color: var(--primary);
+    margin-bottom: 4px;
+}
+
+.upload-area h4 {
+    font-size: 0.65rem;
+    margin-bottom: 4px;
+    color: var(--text);
+}
+
+.upload-area p {
+    font-size: 0.45rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+/* File Preview - Full Width */
+.file-preview {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 4px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.03);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.file-preview::-webkit-scrollbar {
+    width: 3px;
+}
+
+.file-preview::-webkit-scrollbar-track {
+    background: var(--border, rgba(255,255,255,0.05));
+    border-radius: 3px;
+}
+
+.file-preview::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+}
+
+.preview-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.preview-item:last-child {
+    border-bottom: none;
+}
+
+.preview-item img {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.photo-preview-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.preview-name {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.preview-size {
+    font-size: 0.55rem;
+    color: var(--text);
+}
+
+/* Upload Progress - Full Width */
+.upload-progress {
+    margin-top: 8px;
+    padding: 4px;
+    background: var(--surface-alt, rgba(255,255,255,0.03));
+    border-radius: 8px;
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.progress-bar {
+    background: var(--border, rgba(255,255,255,0.1));
+    border-radius: 8px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 4px;
+    width: 100%;
+}
+
+.progress-fill {
+    background:  var(--primary);
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: progress-shine 1.5s infinite;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.65rem;
+    color: var(--text-secondary, #9ca3af);
+    width: 100%;
+}
+
+#progressPercent {
+    font-family: monospace;
+    background: var(--surface, rgba(255,255,255,0.05));
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* Upload Actions - Full Width */
+.upload-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border, rgba(255,255,255,0.1));
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Fix for photos container to allow full width */
+.photos-container {
+    padding: 0;
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+/* Ensure all child elements use border-box */
+.photos-container * {
+    box-sizing: border-box;
+}
+
+/* Animation */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes progress-shine {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+
+
+
+
+
+
+
+
+/* ========== ALBUM MANAGEMENT SECTION (Matches Upload Section) ========== */
+
+/* Album Management Section Container */
+.album-management-section {
+    background: var(--card-bg, #1e1e2f);
+    border-radius: 8px;
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    overflow: hidden;
+    animation: slideDown 0.3s ease;
+    width: 100%;
+    margin: 8px 0;
+    box-sizing: border-box;
+}
+
+/* Album Management Content */
+.album-management-content {
+    padding: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Album Management Header */
+.album-management-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.album-management-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+/* Album Management Body */
+.album-management-body {
+    margin-bottom: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* Album Delete Confirmation Panel */
+.album-delete-confirmation-panel {
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 6px;
+    padding: 8px;
+    margin: 8px 0;
+    border-left: 3px solid #ef4444;
+    animation: warningPulse 0.5s ease;
+}
+
+.album-delete-content-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.album-delete-warning-panel {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0;
+    font-size: 0.65rem;
+    color: #fca5a5;
+}
+
+.album-delete-warning-panel i {
+    font-size: 14px;
+    color: #ef4444;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.album-delete-actions-panel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* Album Management Actions */
+.album-management-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border, rgba(255,255,255,0.1));
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Hide original albums-manage-section if it exists */
+.albums-manage-section {
+    display: none !important;
+}
+
+
+
+
+
+
+
+
+
+
+
+/* ========== PHOTO VIEW SECTION (Inline like Album Management) ========== */
+
+/* Photo View Section Container */
+.photo-view-section {
+    background: var(--card-bg, #1e1e2f);
+    border-radius: 8px;
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    overflow: hidden;
+    animation: slideDown 0.3s ease;
+    width: 100%;
+    margin: 8px 0;
+    box-sizing: border-box;
+}
+
+/* Photo View Content */
+.photo-view-content {
+    padding: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Photo View Header */
+.photo-view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.1));
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.photo-view-title-info {
+    flex: 1;
+}
+
+.photo-view-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 4px 0;
+}
+
+.photo-view-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 0.65rem;
+    color: var(--neutral, #9ca3af);
+    margin-bottom: 8px;
+}
+
+.favorite-badge-view {
+    color: #f59e0b;
+}
+
+/* Close Button */
+.close-photo-view {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #9ca3af);
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    font-size: 0.8rem;
+}
+
+/* Photo Description */
+.photo-description-container {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+}
+
+.photo-description-input-view {
+    width: 100%;
+    padding: 4px 6px;
+    padding-right: 70px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 0.65rem;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.photo-description-input-view:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.description-char-count-view {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+}
+
+/* Photo View Body */
+.photo-view-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 20px;
+    max-height: 60vh;
+    overflow: hidden;
+    border-radius: 4px;
+    margin: 4px 0;
+}
+
+.photo-zoom-container-view {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    cursor: zoom-in;
+    padding: 0;
+}
+
+.zoomable-photo-view {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+}
+
+/* Photo View Footer */
+.photo-view-footer {
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+
+.photo-view-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.photo-view-actions .btn-icon {
+    background: var(--surface-alt, rgba(255,255,255,0.05));
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    color: var(--text);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+/* Delete and Add to Album Panels */
+.photo-delete-panel,
+.add-to-album-panel {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 6px;
+    border-left: 3px solid var(--danger);
+    animation: slideUp 0.3s ease;
+}
+
+.add-to-album-panel {
+    background: rgba(59, 130, 246, 0.1);
+    border-left-color: var(--primary);
+}
+
+.photo-confirmation-content-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.photo-confirmation-content-panel > p {
+    margin: 0;
+    font-size: 0.65rem;
+    color: var(--text);
+}
+
+.photo-confirmation-actions-panel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+/* Albums List View */
+.albums-list-view {
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+}
+
+.albums-list-view::-webkit-scrollbar {
+    width: 4px;
+}
+
+.albums-list-view::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+}
+
+.albums-list-view::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+}
+
+/* Album Items in List */
+.albums-list-view .album-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px;
+    border-bottom: 1px dashed var(--dark);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.albums-list-view .album-item:last-child {
+    border-bottom: none;
+}
+
+.albums-list-view .album-item.already-in-album {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.albums-list-view .album-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid;
+    flex-shrink: 0;
+}
+
+.albums-list-view .album-icon i {
+    font-size: 14px;
+}
+
+.albums-list-view .album-info {
+    flex: 1;
+}
+
+.albums-list-view .album-name {
+    font-size: 0.65rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.albums-list-view .album-count {
+    font-size: 0.6rem;
+    color: var(--text-secondary, #9ca3af);
+}
+
+
+
+
+
+/* ========== BATCH DELETE CONFIRMATION PANEL ========== */
+
+/* Batch Delete Panel - Unique styles to avoid conflicts */
+.batch-delete-panel {
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 8px;
+    border-left: 3px solid #ef4444;
+    margin-top: 12px;
+    padding: 12px 16px;
+    animation: slideUp 0.3s ease;
+}
+
+.batch-confirmation-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.batch-delete-warning {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fca5a5;
+    font-size: 0.8rem;
+}
+
+.batch-delete-warning i {
+    font-size: 18px;
+    color: #ef4444;
+}
+
+.batch-confirmation-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-end;
+}
+

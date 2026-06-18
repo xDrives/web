@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>xDrive - Secure Storage</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="index-styles.css">
+        <link rel="stylesheet" href="auth-styles.css">
+        <link rel="stylesheet" href="photos-styles.css">
+        <link rel="stylesheet" href="notes-styles.css">
+        <link rel="stylesheet" href="credential-styles.css">
+        <link rel="stylesheet" href="text-to-emoji-styles.css">
+        <link rel="stylesheet" href="text-repeater-styles.css">
+        <link rel="stylesheet" href="settings-styles.css">
+        <link rel="stylesheet" href="share-styles.css">
+    </head>
+    <body data-theme="dark">
+        <!-- TOP NAVIGATION BAR -->
+        <nav class="top-navbar" id="topNavbar">
+            <div class="navbar-header">
+                <div class="app-logo" id="appLogo" style="cursor: pointer;">
+                    <span class="material-icons">health_and_safety</span>
+                    <span class="logo-text">xDrive</span>
+                </div>
+            </div>
+
+            <!-- Navigation Menu - Two sections -->
+            <ul class="navbar-menu" id="navbarMenu">
+                <!-- Separator: General Modules -->
+                <li class="nav-separator">
+                    <span class="separator-text">|</span>
+                </li>
+                
+                <li class="menu-item" data-page="emoji-art">
+                    <a href="#emoji-art" class="menu-link" data-tooltip="Emoji Art">
+                        <span class="material-icons menu-icon">emoji_emotions</span>
+                    </a>
+                </li>
+                <li class="menu-item" data-page="text-repeater">
+                    <a href="#text-repeater" class="menu-link" data-tooltip="Text Repeater">
+                        <span class="material-icons menu-icon">repeat</span>
+                    </a>
+                </li>
+                
+                <!-- Separator: Secure Vault -->
+                <li class="nav-separator">
+                    <span class="separator-text">|</span>
+                </li>
+                
+                <li class="menu-item secure-module" data-page="photos">
+                    <a href="#photos" class="menu-link" data-tooltip="Photos (Secure)">
+                        <span class="material-icons menu-icon">photo_library</span>
+                    </a>
+                </li>
+                <li class="menu-item secure-module" data-page="notes">
+                    <a href="#notes" class="menu-link" data-tooltip="Notes (Secure)">
+                        <span class="material-icons menu-icon">notes</span>
+                    </a>
+                </li>
+                <li class="menu-item secure-module" data-page="credentials">
+                    <a href="#credentials" class="menu-link" data-tooltip="Credential Manager (Secure)">
+                        <span class="material-icons menu-icon">vpn_key</span>
+                    </a>
+                </li>
+                <li class="menu-item share-module" data-page="share">
+                    <a href="#share" class="menu-link" data-tooltip="Share">
+                        <span class="material-icons menu-icon">share</span>
+                    </a>
+                </li>
+                <li class="menu-item secure-module" data-page="settings">
+                    <a href="#settings" class="menu-link" data-tooltip="Settings (Secure)">
+                        <span class="material-icons menu-icon">settings</span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Right side user controls -->
+            <div class="navbar-actions">
+                <div class="user-avatar" id="userAvatar" style="display: none;">
+                    <span class="user-name" id="userNameShort"></span>
+                </div>
+            </div>
+        </nav>            
+        
+        <!-- Bottom Notification Bar -->
+        <div id="bottomNotificationBar" class="bottom-notification-bar" style="display: none;">
+            <span class="material-icons" id="notificationIcon">info</span>
+            <span class="bottom-notification-text" id="notificationText"></span>
+        </div>
+        
+        <!-- Main Content Area -->
+        <main class="main-content" id="mainContent">
+            <section id="home-page" class="page-section active">
+                <div id="home-container"></div>
+            </section>
+            <section id="photos-page" class="page-section">
+                <div id="photos-container"></div>
+            </section>
+            <section id="notes-page" class="page-section">
+                <div id="notes-container"></div>
+            </section>
+            <section id="credentials-page" class="page-section">
+                <div id="credentials-container"></div>
+            </section>
+            <section id="emoji-art-page" class="page-section">
+                <div id="emoji-art-container"></div>
+            </section>
+            <section id="text-repeater-page" class="page-section">
+                <div id="text-repeater-container"></div>
+            </section>
+            <section id="settings-page" class="page-section">
+                <div id="settings-container"></div>
+            </section>
+            <section id="share-page" class="page-section">
+                <div id="share-container"></div>
+            </section>
+        </main>
+
+        <!-- Firebase SDK -->
+        <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-auth-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-database-compat.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+        <script src="index-script.js"></script>
+        <script src="auth-module.js" defer></script>
+        <script src="data-manager.js"></script>
+        <script src="settings-module.js"></script>
+        
+        <!-- Include Modules -->
+        <script src="photos-module.js"></script>
+        <script src="notes-module.js"></script>
+        <script src="text-to-emoji-module.js"></script>
+        <script src="text-repeater-module.js"></script>
+        <script src="credential-manager.js"></script>
+        <script src="share-module.js"></script>
+    </body>
+</html>
