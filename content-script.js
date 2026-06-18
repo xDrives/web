@@ -1,7 +1,7 @@
-// ==================== PRIBOX SECURE SHARE - UNIQUE VISITOR TRACKING ====================
+// ==================== xdrive SECURE SHARE - UNIQUE VISITOR TRACKING ====================
 
 // Main database URL (only for configuration)
-const MAIN_DB_URL = "https://pribox-apps-default-rtdb.europe-west1.firebasedatabase.app/";
+const MAIN_DB_URL = "https://admin-efcf4-default-rtdb.europe-west1.firebasedatabase.app/";
 
 // Will be set after discovery
 let SHARE_DB_URL = null;
@@ -21,21 +21,21 @@ let isDestroyed = false;
 
 // ========== UNIQUE VISITOR HELPERS ==========
 function getOrCreateVisitorId() {
-    let visitorId = localStorage.getItem('pribox_visitor_id');
+    let visitorId = localStorage.getItem('xdrive_visitor_id');
     if (!visitorId) {
         visitorId = 'vis_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-        localStorage.setItem('pribox_visitor_id', visitorId);
+        localStorage.setItem('xdrive_visitor_id', visitorId);
     }
     return visitorId;
 }
 
 function hasVisitorSeenLink(linkId) {
-    const seen = localStorage.getItem(`pribox_seen_${linkId}`);
+    const seen = localStorage.getItem(`xdrive_seen_${linkId}`);
     return seen === 'true';
 }
 
 function markVisitorSeenLink(linkId) {
-    localStorage.setItem(`pribox_seen_${linkId}`, 'true');
+    localStorage.setItem(`xdrive_seen_${linkId}`, 'true');
 }
 
 // ========== STEP 1: DISCOVER SHARE DATABASE URL FROM MAIN DATABASE ==========
@@ -179,10 +179,10 @@ function startViewOnceCountdown(callback) {
 // Build mixed content (text + photos) with unique visitor stats
 function buildMixedHTML() {
     const title = linkData.title || 'Shared Content';
-    const viewOnceBadge = linkData.viewOnce ? '<span class="badge-pribox badge-viewonce">View Once</span>' : '';
+    const viewOnceBadge = linkData.viewOnce ? '<span class="badge-xdrive badge-viewonce">View Once</span>' : '';
     const accessBadge = linkData.hasPassword ? 
-        '<span class="badge-pribox badge-password">Protected</span>' : 
-        '<span class="badge-pribox badge-open">Open Access</span>';
+        '<span class="badge-xdrive badge-password">Protected</span>' : 
+        '<span class="badge-xdrive badge-open">Open Access</span>';
     
     let html = `<div class="content-display-card">
         <div class="content-header">
@@ -197,10 +197,10 @@ function buildMixedHTML() {
     const photos = linkData.photos || [];
     if (photos.length > 0) {
         currentPhotos = photos;
-        html += `<div class="photo-gallery-pribox" id="photoGalleryGrid">`;
+        html += `<div class="photo-gallery-xdrive" id="photoGalleryGrid">`;
         photos.forEach((photo, idx) => {
             html += `
-                <div class="photo-card-pribox" data-photo-index="${idx}">
+                <div class="photo-card-xdrive" data-photo-index="${idx}">
                     <img src="${photo.url}" alt="${escapeHtml(photo.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=Error'">
                     <div class="photo-info">
                         <div class="photo-meta">${photo.size ? photo.size : ''} ${photo.date ? photo.date : ''}</div>
@@ -217,10 +217,10 @@ function buildMixedHTML() {
 
 function buildTextHTML() {
     const title = linkData.title || 'Untitled';
-    const viewOnceBadge = linkData.viewOnce ? '<span class="badge-pribox badge-viewonce">View Once</span>' : '';
+    const viewOnceBadge = linkData.viewOnce ? '<span class="badge-xdrive badge-viewonce">View Once</span>' : '';
     const accessBadge = linkData.hasPassword ? 
-        '<span class="badge-pribox badge-password">Protected</span>' : 
-        '<span class="badge-pribox badge-open">Open Access</span>';
+        '<span class="badge-xdrive badge-password">Protected</span>' : 
+        '<span class="badge-xdrive badge-open">Open Access</span>';
     return `
         <div class="content-display-card">
             <div class="content-header">
@@ -236,10 +236,10 @@ function buildTextHTML() {
 function buildPhotoHTML() {
     const photos = linkData.photos || [];
     const title = linkData.title || 'Shared Photos';
-    const viewOnceBadge = linkData.viewOnce ? '<span class="badge-pribox badge-viewonce">View Once</span>' : '';
+    const viewOnceBadge = linkData.viewOnce ? '<span class="badge-xdrive badge-viewonce">View Once</span>' : '';
     const accessBadge = linkData.hasPassword ? 
-        '<span class="badge-pribox badge-password">Protected</span>' : 
-        '<span class="badge-pribox badge-open">Open</span>';
+        '<span class="badge-xdrive badge-password">Protected</span>' : 
+        '<span class="badge-xdrive badge-open">Open</span>';
     if (!photos.length) {
         return `<div class="content-display-card"><div class="content-header"><div class="content-title">${escapeHtml(title)}</div><div class="badge-group">${accessBadge} ${viewOnceBadge}</div></div><div class="content-body-text">No photos available in this share.</div>${buildMetaFooter()}</div>`;
     }
@@ -247,12 +247,12 @@ function buildPhotoHTML() {
     let galleryHTML = `<div class="content-display-card">
         <div class="content-header">
             <div class="content-title"><span class="material-icons">photo_library</span> ${escapeHtml(title)}</div>
-            <div class="badge-group"><span class="badge-pribox badge-photos">${photos.length} photo${photos.length !== 1 ? 's' : ''}</span>${accessBadge}${viewOnceBadge}</div>
+            <div class="badge-group"><span class="badge-xdrive badge-photos">${photos.length} photo${photos.length !== 1 ? 's' : ''}</span>${accessBadge}${viewOnceBadge}</div>
         </div>
-        <div class="photo-gallery-pribox" id="photoGalleryGrid">`;
+        <div class="photo-gallery-xdrive" id="photoGalleryGrid">`;
     photos.forEach((photo, idx) => {
         galleryHTML += `
-            <div class="photo-card-pribox" data-photo-index="${idx}">
+            <div class="photo-card-xdrive" data-photo-index="${idx}">
                 <img src="${photo.url}" alt="${escapeHtml(photo.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=Error'">
                 <div class="photo-info">
                     <div class="photo-meta">${photo.size ? photo.size : ''} ${photo.date ? photo.date : ''}</div>
@@ -319,7 +319,7 @@ async function displayContent() {
 function attachPhotoEvents() { /* same as original, kept for brevity */ 
     const gallery = document.getElementById('photoGalleryGrid');
     if (!gallery) return;
-    document.querySelectorAll('.photo-card-pribox').forEach(card => {
+    document.querySelectorAll('.photo-card-xdrive').forEach(card => {
         card.addEventListener('click', (e) => {
             const idx = parseInt(card.getAttribute('data-photo-index'));
             if (!isNaN(idx)) openPhotoModal(idx);
@@ -504,10 +504,10 @@ function escapeHtml(t){
 
 async function shareCurrentLink() {
     const currentUrl = window.location.href;
-    const title = linkData?.title || 'PriBox Shared Content';
+    const title = linkData?.title || 'xDrive Shared Content';
     if (navigator.share) {
         try {
-            await navigator.share({ title: title, text: 'Check out this shared content on PriBox!', url: currentUrl });
+            await navigator.share({ title: title, text: 'Check out this shared content on xdrive!', url: currentUrl });
             showTemporaryMessage('Sharing...', 'success');
         } catch (error) {
             if (error.name !== 'AbortError') {
@@ -546,8 +546,8 @@ function showTemporaryMessage(msg, type = 'info') {
 
 function setupApkDownload() {
     const apkLink = document.getElementById('apkDownloadLink');
-    apkLink.href = 'PriBox.apk';
-    apkLink.download = 'PriBox.apk';
+    apkLink.href = 'xDrive.apk';
+    apkLink.download = 'xDrive.apk';
 }
 
 // Event binding
