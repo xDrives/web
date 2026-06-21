@@ -199,9 +199,14 @@ function buildMixedHTML() {
         currentPhotos = photos;
         html += `<div class="photo-gallery-xdrive" id="photoGalleryGrid">`;
         photos.forEach((photo, idx) => {
+            const imgHtml = `<img src="${photo.url}" alt="${escapeHtml(photo.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=Error'">`;
+            // --- WATERMARK WRAPPER ---
+            const watermarkHtml = linkData.watermarkText ? 
+                `<span class="watermarked-image" data-watermark="${escapeHtml(linkData.watermarkText)}">${imgHtml}</span>` : 
+                imgHtml;
             html += `
                 <div class="photo-card-xdrive" data-photo-index="${idx}">
-                    <img src="${photo.url}" alt="${escapeHtml(photo.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=Error'">
+                    ${watermarkHtml}
                     <div class="photo-info">
                         <div class="photo-meta">${photo.size ? photo.size : ''} ${photo.date ? photo.date : ''}</div>
                     </div>
@@ -251,9 +256,14 @@ function buildPhotoHTML() {
         </div>
         <div class="photo-gallery-xdrive" id="photoGalleryGrid">`;
     photos.forEach((photo, idx) => {
+        const imgHtml = `<img src="${photo.url}" alt="${escapeHtml(photo.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=Error'">`;
+        // --- WATERMARK WRAPPER ---
+        const watermarkHtml = linkData.watermarkText ? 
+            `<span class="watermarked-image" data-watermark="${escapeHtml(linkData.watermarkText)}">${imgHtml}</span>` : 
+            imgHtml;
         galleryHTML += `
             <div class="photo-card-xdrive" data-photo-index="${idx}">
-                <img src="${photo.url}" alt="${escapeHtml(photo.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=Error'">
+                ${watermarkHtml}
                 <div class="photo-info">
                     <div class="photo-meta">${photo.size ? photo.size : ''} ${photo.date ? photo.date : ''}</div>
                 </div>
@@ -316,7 +326,7 @@ async function displayContent() {
     }
 }
 
-function attachPhotoEvents() { /* same as original, kept for brevity */ 
+function attachPhotoEvents() {
     const gallery = document.getElementById('photoGalleryGrid');
     if (!gallery) return;
     document.querySelectorAll('.photo-card-xdrive').forEach(card => {
@@ -340,7 +350,7 @@ function attachPhotoEvents() { /* same as original, kept for brevity */
     });
 }
 
-function openPhotoModal(idx) { /* same as original */ 
+function openPhotoModal(idx) {
     if (!currentPhotos.length) return;
     currentPhotoIndex = Math.min(Math.max(0, idx), currentPhotos.length-1);
     const photo = currentPhotos[currentPhotoIndex];
@@ -349,7 +359,7 @@ function openPhotoModal(idx) { /* same as original */
     document.getElementById('photoModal').classList.add('active');
     document.body.style.overflow = 'hidden';
 }
-function navigatePhoto(d) { /* same */ 
+function navigatePhoto(d) {
     let newIdx = currentPhotoIndex + d;
     if (newIdx >= 0 && newIdx < currentPhotos.length) {
         currentPhotoIndex = newIdx;
@@ -358,12 +368,12 @@ function navigatePhoto(d) { /* same */
         document.getElementById('photoCounter').textContent = `${currentPhotoIndex+1} / ${currentPhotos.length}`;
     }
 }
-function closePhotoModal() { /* same */ 
+function closePhotoModal() {
     document.getElementById('photoModal').classList.remove('active');
     document.body.style.overflow = '';
 }
 
-function resetToUnlock() { /* adapted to keep consistency */
+function resetToUnlock() {
     if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
     document.getElementById('contentDisplay').innerHTML = '';
     document.getElementById('contentSection').style.display = 'none';

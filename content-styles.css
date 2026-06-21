@@ -550,3 +550,47 @@ body {
 .temp-message .material-icons {
     font-size: 16px;
 }
+
+
+
+
+
+
+/* ---------- WATERMARK OVERLAY ---------- */
+.watermarked-image {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    overflow: hidden;
+}
+
+.watermarked-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.watermarked-image::after {
+    content: attr(data-watermark);
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.65);
+    color: rgba(255, 255, 255, 0.9);
+    padding: 4px 16px;
+    border-radius: 30px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+    max-width: 80%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+}
