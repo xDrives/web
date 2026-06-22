@@ -434,63 +434,61 @@ async function loadLink() {
         }
 
         // --- Check "Share With" restrictions ---
-if (linkData.allowedUsers && linkData.allowedUsers.length > 0) {
-    // Try to get current user from localStorage
-    const currentUserStr = localStorage.getItem('currentUser');
-    let currentUser = null;
-    try {
-        currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
-    } catch (e) { /* ignore */ }
+        if (linkData.allowedUsers && linkData.allowedUsers.length > 0) {
+            // 1. Get user data and auth token from localStorage
+            const currentUserStr = localStorage.getItem('currentUser');
+            const authToken = localStorage.getItem('authToken');   // <-- new
+            let currentUser = null;
+            try {
+                currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+            } catch (e) { /* ignore */ }
 
-    const userEmail = currentUser?.email ? currentUser.email.trim().toLowerCase() : null;
-    const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
+            const userEmail = currentUser?.email ? currentUser.email.trim().toLowerCase() : null;
+            const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
 
-    // If user is not logged in
-    if (!userEmail) {
-        showError('This content is shared with specific users. Please sign in to xDrive to view.', true);
-        document.getElementById('unlockSection').style.display = 'none';
-        document.getElementById('contentSection').style.display = 'block';
-        document.getElementById('contentDisplay').innerHTML = `
-            <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
-                <span class="material-icons" style="font-size:48px; color:var(--primary);">account_circle</span>
-                <h3 style="margin-top:12px;">Sign In Required</h3>
-                <p style="margin-top:8px; opacity:0.8;">This content is only available to specific users.</p>
-                <button id="signInToViewBtn" class="btn-xdrive btn-primary" style="margin-top:20px;">
-                    <span class="material-icons">login</span> Sign In to xDrive
-                </button>
-            </div>
-        `;
-        document.getElementById('signInToViewBtn')?.addEventListener('click', () => {
-            // Redirect to the main app login page (adjust URL as needed)
-            window.location.href = '/index.html'; // or wherever the main app lives
-        });
-        document.getElementById('loading').style.display = 'none';
-        return; // stop further processing
-    }
+            // 2. Require BOTH a user email AND a valid auth token
+            if (!userEmail || !authToken || authToken.trim() === '') {
+                showError('Please sign in to view this content.', true);
+                document.getElementById('unlockSection').style.display = 'none';
+                document.getElementById('contentSection').style.display = 'block';
+                document.getElementById('contentDisplay').innerHTML = `
+                    <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
+                        <span class="material-icons" style="font-size:48px; color:var(--primary);">account_circle</span>
+                        <h3 style="margin-top:12px;">Sign In Required</h3>
+                        <p style="margin-top:8px; opacity:0.8;">This content is only available to specific users.</p>
+                        <button id="signInToViewBtn" class="btn-xdrive btn-primary" style="margin-top:20px;">
+                            <span class="material-icons">login</span> Sign In to xDrive
+                        </button>
+                    </div>
+                `;
+                document.getElementById('signInToViewBtn')?.addEventListener('click', () => {
+                    window.location.href = '/web/index.html'; // adjust to your login page
+                });
+                document.getElementById('loading').style.display = 'none';
+                return; // stop further processing
+            }
 
-    // Check if user is authorized
-    if (!allowedEmails.includes(userEmail)) {
-        showError('Access Denied: You are not authorized to view this content.', true);
-        document.getElementById('unlockSection').style.display = 'none';
-        document.getElementById('contentSection').style.display = 'block';
-        document.getElementById('contentDisplay').innerHTML = `
-            <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
-                <span class="material-icons" style="font-size:48px; color:var(--danger);">block</span>
-                <h3 style="margin-top:12px;">Access Denied</h3>
-                <p style="margin-top:8px; opacity:0.8;">You are not on the allowed user list for this content.</p>
-            </div>
-        `;
-        document.getElementById('loading').style.display = 'none';
-        return;
-    }
+            // 3. Check if user is authorized
+            if (!allowedEmails.includes(userEmail)) {
+                showError('Access Denied: You are not authorized to view this content.', true);
+                document.getElementById('unlockSection').style.display = 'none';
+                document.getElementById('contentSection').style.display = 'block';
+                document.getElementById('contentDisplay').innerHTML = `
+                    <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
+                        <span class="material-icons" style="font-size:48px; color:var(--danger);">block</span>
+                        <h3 style="margin-top:12px;">Access Denied</h3>
+                        <p style="margin-top:8px; opacity:0.8;">You are not on the allowed user list for this content.</p>
+                    </div>
+                `;
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
 
-    // If user is authorized, we can bypass the password check (optional)
-    // but we'll still show the unlock section if password is also set,
-    // but we can automatically unlock if allowedUsers matched.
-    // We'll set a flag to skip password.
-    linkData._authorizedByShareWith = true;
-}
+            // If all checks pass, mark as authorized (skip password if desired)
+            linkData._authorizedByShareWith = true;
+        }
 
+        // ... rest of loadLink (accessibility check, showing unlock section, etc.) unchanged ...
         if (!isLinkAccessible(linkData)) {
             let msg = 'Link is not accessible.';
             if (linkData.isDestroyed) msg = 'This link has been destroyed (View Once mode).';

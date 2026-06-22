@@ -1527,7 +1527,11 @@ class AuthModule {
             // Save to localStorage
             localStorage.setItem('currentUser', JSON.stringify(userData));
             localStorage.setItem('lastEmail', email);
-            
+
+            // After login success
+            localStorage.setItem('currentUser', JSON.stringify({ email: user.email }));
+            localStorage.setItem('authToken', 'true');   // or a real JWT/Firebase ID token
+                        
             // Save database configurations to localStorage
             this.saveDatabaseConfigsToStorage();
             
@@ -1938,6 +1942,10 @@ class AuthModule {
             localStorage.setItem('lastEmail', lastEmail);
         }
         
+        // On logout
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('authToken');
+
         // Reset state
         this.isAuthenticated = false;
         this.currentUser = null;
