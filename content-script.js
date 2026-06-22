@@ -399,7 +399,13 @@ function resetToUnlock() {
 function showAccessMessage() {
     const openDiv = document.getElementById('openAccessMessage');
     const passDiv = document.getElementById('passwordAccessMessage');
-    if (linkData.hasPassword) {
+    if (linkData._authorizedByShareWith) {
+        // User is already authorized, auto-view or show a "View Content" button
+        openDiv.style.display = 'block';
+        passDiv.style.display = 'none';
+        // Optionally auto-view:
+        // viewOpenContent();
+    } else if (linkData.hasPassword) {
         openDiv.style.display = 'none';
         passDiv.style.display = 'block';
     } else {
@@ -426,6 +432,65 @@ async function loadLink() {
             showError('Link not found or has been deleted.', true); 
             return; 
         }
+
+        // --- Check "Share With" restrictions ---
+if (linkData.allowedUsers && linkData.allowedUsers.length > 0) {
+    // Try to get current user from localStorage
+    const currentUserStr = localStorage.getItem('currentUser');
+    let currentUser = null;
+    try {
+        currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+    } catch (e) { /* ignore */ }
+
+    const userEmail = currentUser?.email ? currentUser.email.trim().toLowerCase() : null;
+    const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
+
+    // If user is not logged in
+    if (!userEmail) {
+        showError('This content is shared with specific users. Please sign in to xDrive to view.', true);
+        document.getElementById('unlockSection').style.display = 'none';
+        document.getElementById('contentSection').style.display = 'block';
+        document.getElementById('contentDisplay').innerHTML = `
+            <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
+                <span class="material-icons" style="font-size:48px; color:var(--primary);">account_circle</span>
+                <h3 style="margin-top:12px;">Sign In Required</h3>
+                <p style="margin-top:8px; opacity:0.8;">This content is only available to specific users.</p>
+                <button id="signInToViewBtn" class="btn-xdrive btn-primary" style="margin-top:20px;">
+                    <span class="material-icons">login</span> Sign In to xDrive
+                </button>
+            </div>
+        `;
+        document.getElementById('signInToViewBtn')?.addEventListener('click', () => {
+            // Redirect to the main app login page (adjust URL as needed)
+            window.location.href = '/index.html'; // or wherever the main app lives
+        });
+        document.getElementById('loading').style.display = 'none';
+        return; // stop further processing
+    }
+
+    // Check if user is authorized
+    if (!allowedEmails.includes(userEmail)) {
+        showError('Access Denied: You are not authorized to view this content.', true);
+        document.getElementById('unlockSection').style.display = 'none';
+        document.getElementById('contentSection').style.display = 'block';
+        document.getElementById('contentDisplay').innerHTML = `
+            <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
+                <span class="material-icons" style="font-size:48px; color:var(--danger);">block</span>
+                <h3 style="margin-top:12px;">Access Denied</h3>
+                <p style="margin-top:8px; opacity:0.8;">You are not on the allowed user list for this content.</p>
+            </div>
+        `;
+        document.getElementById('loading').style.display = 'none';
+        return;
+    }
+
+    // If user is authorized, we can bypass the password check (optional)
+    // but we'll still show the unlock section if password is also set,
+    // but we can automatically unlock if allowedUsers matched.
+    // We'll set a flag to skip password.
+    linkData._authorizedByShareWith = true;
+}
+
         if (!isLinkAccessible(linkData)) {
             let msg = 'Link is not accessible.';
             if (linkData.isDestroyed) msg = 'This link has been destroyed (View Once mode).';
@@ -450,6 +515,18 @@ async function loadLink() {
 
 async function viewOpenContent() { 
     if(isContentDisplayed) return; 
+    // If authorized by Share With, we can directly display
+    if (linkData._authorizedByShareWith) {
+        document.getElementById('loading').style.display = 'block';
+        try {
+            await displayContent();
+        } catch (e) {
+            showError(e.message);
+        } finally {
+            document.getElementById('loading').style.display = 'none';
+        }
+        return;
+    }
     document.getElementById('loading').style.display='block'; 
     try{ 
         await displayContent(); 
@@ -462,6 +539,11 @@ async function viewOpenContent() {
 
 async function verifyAndUnlock() {
     if(isContentDisplayed) return;
+    // If authorized by Share With, skip password check
+    if (linkData._authorizedByShareWith) {
+        await displayContent();
+        return;
+    }
     const pwd = document.getElementById('passwordInput').value;
     if(!pwd){ showError('Please enter the password.'); return; }
     document.getElementById('loading').style.display='block'; 
