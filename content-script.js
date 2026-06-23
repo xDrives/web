@@ -433,61 +433,31 @@ async function loadLink() {
 
         // --- Check "Share With" restrictions ---
         if (linkData.allowedUsers && linkData.allowedUsers.length > 0) {
-            // Get user data from localStorage
             const currentUserStr = localStorage.getItem('currentUser');
             let currentUser = null;
             try {
                 currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
-            } catch (e) {
-                console.warn('Failed to parse currentUser:', e);
-            }
+            } catch (e) { console.warn('Failed to parse currentUser:', e); }
 
             const userEmail = currentUser?.email ? currentUser.email.trim().toLowerCase() : null;
 
-            // If not signed in, show sign-in prompt
+            // If not signed in, show sign-in prompt (unchanged)
             if (!userEmail) {
-                console.log('User not signed in – showing sign-in prompt');
-                showError('Please sign in to view this content.', true);
-                document.getElementById('unlockSection').style.display = 'none';
-                document.getElementById('contentSection').style.display = 'block';
-                document.getElementById('contentDisplay').innerHTML = `
-                    <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
-                        <span class="material-icons" style="font-size:48px; color:var(--primary);">account_circle</span>
-                        <h3 style="margin-top:12px;">Sign In Required</h3>
-                        <p style="margin-top:8px; opacity:0.8;">This content is only available to specific users.</p>
-                        <button id="signInToViewBtn" class="btn-xdrive btn-primary" style="margin-top:20px;">
-                            <span class="material-icons">login</span> Sign In to xDrive
-                        </button>
-                    </div>
-                `;
-                document.getElementById('signInToViewBtn')?.addEventListener('click', () => {
-                    window.location.href = '/web/index.html'; // adjust to your login page
-                });
-                document.getElementById('loading').style.display = 'none';
-                return; // stop further processing
-            }
-
-            // Check if user is in the allowed list
-            const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
-            if (!allowedEmails.includes(userEmail)) {
-                console.log('User not in allowed list:', userEmail, 'allowed:', allowedEmails);
-                showError('Access Denied: You are not authorized to view this content.', true);
-                document.getElementById('unlockSection').style.display = 'none';
-                document.getElementById('contentSection').style.display = 'block';
-                document.getElementById('contentDisplay').innerHTML = `
-                    <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
-                        <span class="material-icons" style="font-size:48px; color:var(--danger);">block</span>
-                        <h3 style="margin-top:12px;">Access Denied</h3>
-                        <p style="margin-top:8px; opacity:0.8;">You are not on the allowed user list for this content.</p>
-                    </div>
-                `;
+                showSignInPrompt();
                 document.getElementById('loading').style.display = 'none';
                 return;
             }
 
-            // Authorized – skip password if desired
+            const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
+            if (!allowedEmails.includes(userEmail)) {
+                // Show access denied + request access button
+                showAccessDeniedWithRequest(userEmail);
+                document.getElementById('loading').style.display = 'none';
+                return;
+            }
+
+            // Authorized
             linkData._authorizedByShareWith = true;
-            console.log('User authorized via share-with list:', userEmail);
         }
 
         // ... rest of loadLink (accessibility check, showing unlock section, etc.) unchanged ...
@@ -511,6 +481,59 @@ async function loadLink() {
     } finally { 
         document.getElementById('loading').style.display = 'none'; 
     }
+}
+
+function showAccessDeniedWithRequest(userEmail) {
+    const displayDiv = document.getElementById('contentDisplay');
+    displayDiv.innerHTML = `
+        <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
+            <span class="material-icons" style="font-size:48px; color:var(--danger);">block</span>
+            <h3 style="margin-top:12px;">Access Denied</h3>
+            <p style="margin-top:8px; opacity:0.8;">You are not on the allowed user list for this content.</p>
+            <button id="requestAccessBtn" class="btn-xdrive btn-primary" style="margin-top:20px;">
+                <span class="material-icons">send</span> Request Access
+            </button>
+            <div id="requestStatus" style="margin-top:12px; font-size:0.9rem;"></div>
+        </div>
+    `;
+    document.getElementById('unlockSection').style.display = 'none';
+    document.getElementById('contentSection').style.display = 'block';
+
+    document.getElementById('requestAccessBtn')?.addEventListener('click', () => {
+        requestAccess(linkId, userEmail);
+    });
+}
+
+async function requestAccess(linkId, requesterEmail) {
+    const statusDiv = document.getElementById('requestStatus');
+    statusDiv.innerHTML = 'Sending request...';
+    const btn = document.getElementById('requestAccessBtn');
+    btn.disabled = true;
+
+    try {
+        const requestPath = `accessRequests/${linkId}/${encodeEmail(requesterEmail)}`;
+        const requestData = {
+            requestedAt: Date.now(),
+            status: 'pending',
+            requesterEmail: requesterEmail
+        };
+        const success = await putData(requestPath, requestData);
+        if (success) {
+            statusDiv.innerHTML = '✅ Access request sent! The owner will review it.';
+            btn.style.display = 'none';
+        } else {
+            statusDiv.innerHTML = '❌ Failed to send request. Please try again.';
+            btn.disabled = false;
+        }
+    } catch (err) {
+        console.error('Request error:', err);
+        statusDiv.innerHTML = '❌ Error sending request. Please try again.';
+        btn.disabled = false;
+    }
+}
+
+function encodeEmail(email) {
+    return email.replace(/\./g, ',').replace(/@/g, '-at-');
 }
 
 async function viewOpenContent() { 
