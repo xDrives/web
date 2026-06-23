@@ -433,29 +433,20 @@ async function loadLink() {
 
         // --- Check "Share With" restrictions ---
         if (linkData.allowedUsers && linkData.allowedUsers.length > 0) {
-            // 1. Get user data and auth token from localStorage
+            // Get user data from localStorage
             const currentUserStr = localStorage.getItem('currentUser');
             let currentUser = null;
             try {
                 currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
-            } catch (e) { 
+            } catch (e) {
                 console.warn('Failed to parse currentUser:', e);
             }
 
-            let authToken = localStorage.getItem('authToken');
             const userEmail = currentUser?.email ? currentUser.email.trim().toLowerCase() : null;
 
-            // --- REPAIR MISSING OR MISMATCHED TOKEN ---
-            if (userEmail && (!authToken || authToken.trim() === '' || authToken.trim().toLowerCase() !== userEmail)) {
-                console.warn('Auth token missing or mismatched. Repairing from currentUser...');
-                authToken = userEmail;
-                localStorage.setItem('authToken', authToken);
-                console.log('Auth token repaired to:', authToken);
-            }
-
-            // 2. Require BOTH a user email AND a valid auth token (now repaired if possible)
-            if (!userEmail || !authToken || authToken.trim() === '' || authToken.trim().toLowerCase() !== userEmail) {
-                console.log('Authorization failed: userEmail=', userEmail, 'authToken=', authToken);
+            // If not signed in, show sign-in prompt
+            if (!userEmail) {
+                console.log('User not signed in – showing sign-in prompt');
                 showError('Please sign in to view this content.', true);
                 document.getElementById('unlockSection').style.display = 'none';
                 document.getElementById('contentSection').style.display = 'block';
@@ -476,7 +467,7 @@ async function loadLink() {
                 return; // stop further processing
             }
 
-            // 3. Check if user is authorized
+            // Check if user is in the allowed list
             const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
             if (!allowedEmails.includes(userEmail)) {
                 console.log('User not in allowed list:', userEmail, 'allowed:', allowedEmails);
@@ -494,7 +485,7 @@ async function loadLink() {
                 return;
             }
 
-            // If all checks pass, mark as authorized (skip password if desired)
+            // Authorized – skip password if desired
             linkData._authorizedByShareWith = true;
             console.log('User authorized via share-with list:', userEmail);
         }
