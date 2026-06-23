@@ -400,11 +400,8 @@ function showAccessMessage() {
     const openDiv = document.getElementById('openAccessMessage');
     const passDiv = document.getElementById('passwordAccessMessage');
     if (linkData._authorizedByShareWith) {
-        // User is already authorized, auto-view or show a "View Content" button
         openDiv.style.display = 'block';
         passDiv.style.display = 'none';
-        // Optionally auto-view:
-        // viewOpenContent();
     } else if (linkData.hasPassword) {
         openDiv.style.display = 'none';
         passDiv.style.display = 'block';
@@ -422,6 +419,7 @@ function isLinkAccessible(data) {
     return true;
 }
 
+// ========== FIXED: AUTHORIZATION CHECK WITH TOKEN REPAIR ==========
 async function loadLink() {
     if (!linkId) { showError('Invalid link: missing content ID.', true); return; }
     document.getElementById('loading').style.display = 'block';
@@ -440,14 +438,24 @@ async function loadLink() {
             let currentUser = null;
             try {
                 currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
-            } catch (e) { /* ignore */ }
+            } catch (e) { 
+                console.warn('Failed to parse currentUser:', e);
+            }
 
-            const authToken = localStorage.getItem('authToken');
+            let authToken = localStorage.getItem('authToken');
             const userEmail = currentUser?.email ? currentUser.email.trim().toLowerCase() : null;
-            const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
 
-            // 2. Require BOTH a user email AND a valid auth token
+            // --- REPAIR MISSING OR MISMATCHED TOKEN ---
+            if (userEmail && (!authToken || authToken.trim() === '' || authToken.trim().toLowerCase() !== userEmail)) {
+                console.warn('Auth token missing or mismatched. Repairing from currentUser...');
+                authToken = userEmail;
+                localStorage.setItem('authToken', authToken);
+                console.log('Auth token repaired to:', authToken);
+            }
+
+            // 2. Require BOTH a user email AND a valid auth token (now repaired if possible)
             if (!userEmail || !authToken || authToken.trim() === '' || authToken.trim().toLowerCase() !== userEmail) {
+                console.log('Authorization failed: userEmail=', userEmail, 'authToken=', authToken);
                 showError('Please sign in to view this content.', true);
                 document.getElementById('unlockSection').style.display = 'none';
                 document.getElementById('contentSection').style.display = 'block';
@@ -469,7 +477,9 @@ async function loadLink() {
             }
 
             // 3. Check if user is authorized
+            const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
             if (!allowedEmails.includes(userEmail)) {
+                console.log('User not in allowed list:', userEmail, 'allowed:', allowedEmails);
                 showError('Access Denied: You are not authorized to view this content.', true);
                 document.getElementById('unlockSection').style.display = 'none';
                 document.getElementById('contentSection').style.display = 'block';
@@ -486,6 +496,7 @@ async function loadLink() {
 
             // If all checks pass, mark as authorized (skip password if desired)
             linkData._authorizedByShareWith = true;
+            console.log('User authorized via share-with list:', userEmail);
         }
 
         // ... rest of loadLink (accessibility check, showing unlock section, etc.) unchanged ...
