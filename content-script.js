@@ -437,17 +437,17 @@ async function loadLink() {
         if (linkData.allowedUsers && linkData.allowedUsers.length > 0) {
             // 1. Get user data and auth token from localStorage
             const currentUserStr = localStorage.getItem('currentUser');
-            const authToken = localStorage.getItem('authToken');   // <-- new
             let currentUser = null;
             try {
                 currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
             } catch (e) { /* ignore */ }
 
+            const authToken = localStorage.getItem('authToken');
             const userEmail = currentUser?.email ? currentUser.email.trim().toLowerCase() : null;
             const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
 
             // 2. Require BOTH a user email AND a valid auth token
-            if (!userEmail || !authToken || authToken.trim() === '') {
+            if (!userEmail || !authToken || authToken.trim() === '' || authToken.trim().toLowerCase() !== userEmail) {
                 showError('Please sign in to view this content.', true);
                 document.getElementById('unlockSection').style.display = 'none';
                 document.getElementById('contentSection').style.display = 'block';
