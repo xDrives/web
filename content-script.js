@@ -435,24 +435,22 @@ async function loadLink() {
                 currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
             } catch (e) { console.warn('Failed to parse currentUser:', e); }
 
-            const userPhone = currentUser?.phone ? currentUser.phone.trim() : null;
+            const userPhone = currentUser?.phone ? normalizePhone(currentUser.phone) : null;
 
-            // If not signed in, show sign-in prompt
             if (!userPhone) {
                 showSignInPrompt();
                 document.getElementById('loading').style.display = 'none';
                 return;
             }
 
-            const allowedPhones = linkData.allowedPhones.map(p => p.trim());
-            if (!allowedPhones.includes(userPhone)) {
-                // Show access denied + request access button
+            // Normalize allowed phones before comparison
+            const normalizedAllowed = linkData.allowedPhones.map(p => normalizePhone(p));
+            if (!normalizedAllowed.includes(userPhone)) {
                 showAccessDeniedWithRequest(userPhone);
                 document.getElementById('loading').style.display = 'none';
                 return;
             }
 
-            // Authorized
             linkData._authorizedByShareWith = true;
         }
 
@@ -500,29 +498,33 @@ function showAccessDeniedWithRequest(userPhone) {
 }
 
 async function requestAccess(linkId, requesterPhone) {
+    // Normalize the requester's phone to a consistent format
+    const normalizedPhone = normalizePhone(requesterPhone);
     const statusDiv = document.getElementById('requestStatus');
     statusDiv.innerHTML = 'Sending request...';
     const btn = document.getElementById('requestAccessBtn');
     btn.disabled = true;
 
     try {
-        const requestPath = `accessRequests/${linkId}/${encodePhone(requesterPhone)}`;
+        // Encode the phone for use in Firebase path (removes special chars)
+        const encodedPhone = encodePhone(normalizedPhone);
+        const requestPath = `accessRequests/${linkId}/${encodedPhone}`;
         const requestData = {
             requestedAt: Date.now(),
             status: 'pending',
-            requesterPhone: requesterPhone
+            requesterPhone: normalizedPhone   // store normalized version
         };
         const success = await putData(requestPath, requestData);
         if (success) {
-            statusDiv.innerHTML = '✅ Access request sent! The owner will review it.';
+            statusDiv.innerHTML = 'Access request sent! The owner will review it.';
             btn.style.display = 'none';
         } else {
-            statusDiv.innerHTML = '❌ Failed to send request. Please try again.';
+            statusDiv.innerHTML = 'Failed to send request. Please try again.';
             btn.disabled = false;
         }
     } catch (err) {
         console.error('Request error:', err);
-        statusDiv.innerHTML = '❌ Error sending request. Please try again.';
+        statusDiv.innerHTML = 'Error sending request. Please try again.';
         btn.disabled = false;
     }
 }
@@ -678,6 +680,17 @@ function setupApkDownload() {
     const apkLink = document.getElementById('apkDownloadLink');
     apkLink.href = 'xDrive.apk';
     apkLink.download = 'xDrive.apk';
+}
+
+// Add this helper at the top (after the existing helpers)
+function normalizePhone(phone) {
+    if (!phone) return '';
+    const trimmed = phone.trim();
+    if (trimmed.startsWith('+')) {
+        const digits = trimmed.substring(1).replace(/\D/g, '');
+        return '+' + digits;
+    }
+    return trimmed.replace(/\D/g, '');
 }
 
 // Event binding
