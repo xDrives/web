@@ -428,31 +428,43 @@ async function loadLink() {
         }
 
         // --- Check "Share With" restrictions (using phone numbers) ---
-        if (linkData.allowedPhones && linkData.allowedPhones.length > 0) {
-            const currentUserStr = localStorage.getItem('currentUser');
-            let currentUser = null;
-            try {
-                currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
-            } catch (e) { console.warn('Failed to parse currentUser:', e); }
+        // In loadLink, after fetching linkData
+if (linkData.allowedPhones && linkData.allowedPhones.length > 0) {
+    const currentUserStr = localStorage.getItem('currentUser');
+    let currentUser = null;
+    try {
+        currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+    } catch (e) { console.warn('Failed to parse currentUser:', e); }
 
-            const userPhone = currentUser?.phone ? normalizePhone(currentUser.phone) : null;
-
-            if (!userPhone) {
-                showAccessRequestForm();
-                document.getElementById('loading').style.display = 'none';
-                return;
-            }
-
-            // Normalize allowed phones before comparison
-            const normalizedAllowed = linkData.allowedPhones.map(p => normalizePhone(p));
-            if (!normalizedAllowed.includes(userPhone)) {
-                showAccessDeniedWithRequest(userPhone);
-                document.getElementById('loading').style.display = 'none';
-                return;
-            }
-
-            linkData._authorizedByShareWith = true;
+    let userPhone = currentUser?.phone ? normalizePhone(currentUser.phone) : null;
+    if (!userPhone) {
+        const storedPhone = getStoredVisitorPhone();
+        if (storedPhone) {
+            userPhone = normalizePhone(storedPhone);
         }
+    }
+
+    // Save the phone for future visits
+    if (userPhone) {
+        setStoredVisitorPhone(userPhone);
+    }
+
+    if (!userPhone) {
+        showAccessRequestForm();
+        document.getElementById('loading').style.display = 'none';
+        return;
+    }
+
+    const normalizedAllowed = linkData.allowedPhones.map(p => normalizePhone(p));
+    if (!normalizedAllowed.includes(userPhone)) {
+        showAccessDeniedWithRequest(userPhone);
+        document.getElementById('loading').style.display = 'none';
+        return;
+    }
+
+    // Authorized
+    linkData._authorizedByShareWith = true;
+}
 
         if (!isLinkAccessible(linkData)) {
             let msg = 'Link is not accessible.';
@@ -515,7 +527,7 @@ async function requestAccess(linkId, requesterPhone, statusElementId = 'requestS
         };
         const success = await putData(requestPath, requestData);
         if (success) {
-            statusDiv.innerHTML = '✅ Access request sent! The owner will review it.';
+            statusDiv.innerHTML = '✅ Access request sent! The owner will review it. <button id="refreshAfterApproval" class="btn btn-small" style="margin-left:8px;" onclick="location.reload()">Refresh after approval</button>';
             if (btn) btn.style.display = 'none';
         } else {
             statusDiv.innerHTML = '❌ Failed to send request. Please try again.';
@@ -632,10 +644,11 @@ function showAccessRequestForm() {
             document.getElementById('requestStatusForm').innerHTML = 'Please enter your phone number.';
             return;
         }
-        // Call requestAccess with the entered phone and the form's status div ID
+        setStoredVisitorPhone(phone);
         requestAccess(linkId, phone, 'requestStatusForm');
     });
 }
+
 function escapeHtml(t){ 
     if(!t) return ''; 
     const div=document.createElement('div'); 
@@ -699,6 +712,18 @@ function normalizePhone(phone) {
         return '+' + digits;
     }
     return trimmed.replace(/\D/g, '');
+}
+
+function getStoredVisitorPhone() {
+    return localStorage.getItem('xdrive_visitor_phone') || null;
+}
+
+function setStoredVisitorPhone(phone) {
+    if (phone) {
+        localStorage.setItem('xdrive_visitor_phone', phone);
+    } else {
+        localStorage.removeItem('xdrive_visitor_phone');
+    }
 }
 
 // Event binding
