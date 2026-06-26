@@ -200,7 +200,6 @@ function buildMixedHTML() {
         html += `<div class="photo-gallery-xdrive" id="photoGalleryGrid">`;
         photos.forEach((photo, idx) => {
             const imgHtml = `<img src="${photo.url}" alt="${escapeHtml(photo.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=Error'">`;
-            // --- WATERMARK WRAPPER ---
             const watermarkHtml = linkData.watermarkText ? 
                 `<span class="watermarked-image" data-watermark="${escapeHtml(linkData.watermarkText)}">${imgHtml}</span>` : 
                 imgHtml;
@@ -257,7 +256,6 @@ function buildPhotoHTML() {
         <div class="photo-gallery-xdrive" id="photoGalleryGrid">`;
     photos.forEach((photo, idx) => {
         const imgHtml = `<img src="${photo.url}" alt="${escapeHtml(photo.name)}" loading="lazy" onerror="this.src='https://via.placeholder.com/300?text=Error'">`;
-        // --- WATERMARK WRAPPER ---
         const watermarkHtml = linkData.watermarkText ? 
             `<span class="watermarked-image" data-watermark="${escapeHtml(linkData.watermarkText)}">${imgHtml}</span>` : 
             imgHtml;
@@ -288,10 +286,8 @@ function buildMetaFooter() {
 async function displayContent() {
     if (isContentDisplayed) return;
     try {
-        // First increment regular view count
         await incrementViews();
         
-        // Handle unique visitor tracking
         const visitorId = getOrCreateVisitorId();
         if (!hasVisitorSeenLink(linkId)) {
             await incrementUniqueVisitor(linkId);
@@ -431,27 +427,27 @@ async function loadLink() {
             return; 
         }
 
-        // --- Check "Share With" restrictions ---
-        if (linkData.allowedUsers && linkData.allowedUsers.length > 0) {
+        // --- Check "Share With" restrictions (using phone numbers) ---
+        if (linkData.allowedPhones && linkData.allowedPhones.length > 0) {
             const currentUserStr = localStorage.getItem('currentUser');
             let currentUser = null;
             try {
                 currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
             } catch (e) { console.warn('Failed to parse currentUser:', e); }
 
-            const userEmail = currentUser?.email ? currentUser.email.trim().toLowerCase() : null;
+            const userPhone = currentUser?.phone ? currentUser.phone.trim() : null;
 
-            // If not signed in, show sign-in prompt (unchanged)
-            if (!userEmail) {
+            // If not signed in, show sign-in prompt
+            if (!userPhone) {
                 showSignInPrompt();
                 document.getElementById('loading').style.display = 'none';
                 return;
             }
 
-            const allowedEmails = linkData.allowedUsers.map(e => e.trim().toLowerCase());
-            if (!allowedEmails.includes(userEmail)) {
+            const allowedPhones = linkData.allowedPhones.map(p => p.trim());
+            if (!allowedPhones.includes(userPhone)) {
                 // Show access denied + request access button
-                showAccessDeniedWithRequest(userEmail);
+                showAccessDeniedWithRequest(userPhone);
                 document.getElementById('loading').style.display = 'none';
                 return;
             }
@@ -460,7 +456,6 @@ async function loadLink() {
             linkData._authorizedByShareWith = true;
         }
 
-        // ... rest of loadLink (accessibility check, showing unlock section, etc.) unchanged ...
         if (!isLinkAccessible(linkData)) {
             let msg = 'Link is not accessible.';
             if (linkData.isDestroyed) msg = 'This link has been destroyed (View Once mode).';
@@ -483,39 +478,39 @@ async function loadLink() {
     }
 }
 
-function showAccessDeniedWithRequest(userEmail) {
+function showAccessDeniedWithRequest(userPhone) {
     const displayDiv = document.getElementById('contentDisplay');
     displayDiv.innerHTML = `
-        <div class="destroyed-message" style="text-align:center; padding:40px 20px;">
-            <span class="material-icons" style="font-size:48px; color:var(--danger);">block</span>
+        <div class="destroyed-message" style="text-align:center; padding:12px;">
+            <span class="material-icons" style="font-size:32px; color:var(--danger);">block</span>
             <h3 style="margin-top:12px;">Access Denied</h3>
             <p style="margin-top:8px; opacity:0.8;">You are not on the allowed user list for this content.</p>
-            <button id="requestAccessBtn" class="btn-xdrive btn-primary" style="margin-top:20px;">
-                <span class="material-icons">send</span> Request Access
+            <button id="requestAccessBtn" class="btn btn-primary" style="margin-top:12px;">
+                <i class="fas fa-paper-plane"></i> Request Access
             </button>
-            <div id="requestStatus" style="margin-top:12px; font-size:0.9rem;"></div>
+            <div id="requestStatus" style="margin-top:12px; font-size:0.75rem;"></div>
         </div>
     `;
     document.getElementById('unlockSection').style.display = 'none';
     document.getElementById('contentSection').style.display = 'block';
 
     document.getElementById('requestAccessBtn')?.addEventListener('click', () => {
-        requestAccess(linkId, userEmail);
+        requestAccess(linkId, userPhone);
     });
 }
 
-async function requestAccess(linkId, requesterEmail) {
+async function requestAccess(linkId, requesterPhone) {
     const statusDiv = document.getElementById('requestStatus');
     statusDiv.innerHTML = 'Sending request...';
     const btn = document.getElementById('requestAccessBtn');
     btn.disabled = true;
 
     try {
-        const requestPath = `accessRequests/${linkId}/${encodeEmail(requesterEmail)}`;
+        const requestPath = `accessRequests/${linkId}/${encodePhone(requesterPhone)}`;
         const requestData = {
             requestedAt: Date.now(),
             status: 'pending',
-            requesterEmail: requesterEmail
+            requesterPhone: requesterPhone
         };
         const success = await putData(requestPath, requestData);
         if (success) {
@@ -532,13 +527,14 @@ async function requestAccess(linkId, requesterEmail) {
     }
 }
 
-function encodeEmail(email) {
-    return email.replace(/\./g, ',').replace(/@/g, '-at-');
+function encodePhone(phone) {
+    if (!phone) return '';
+    const cleaned = phone.replace(/[^\d+]/g, '');
+    return cleaned.replace(/\./g, ',').replace(/@/g, '-at-');
 }
 
 async function viewOpenContent() { 
     if(isContentDisplayed) return; 
-    // If authorized by Share With, we can directly display
     if (linkData._authorizedByShareWith) {
         document.getElementById('loading').style.display = 'block';
         try {
@@ -562,7 +558,6 @@ async function viewOpenContent() {
 
 async function verifyAndUnlock() {
     if(isContentDisplayed) return;
-    // If authorized by Share With, skip password check
     if (linkData._authorizedByShareWith) {
         await displayContent();
         return;
@@ -608,6 +603,26 @@ function showError(msg, fatal=false){
     setTimeout(()=>{ 
         errDiv.style.display='none'; 
     },5000); 
+}
+
+function showSignInPrompt() {
+    const displayDiv = document.getElementById('contentDisplay');
+    displayDiv.innerHTML = `
+        <div class="destroyed-message" style="text-align:center; padding:12px;">
+            <span class="material-icons" style="font-size:32px; color:var(--warning);">login</span>
+            <h3 style="margin-top:12px;">Please Sign In</h3>
+            <p style="margin-top:8px; opacity:0.8;">This content is shared with specific users. Please sign in to xDrive to access it.</p>
+            <button id="signInBtn" class="btn btn-primary" style="margin-top:12px;">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
+        </div>
+    `;
+    document.getElementById('unlockSection').style.display = 'none';
+    document.getElementById('contentSection').style.display = 'block';
+
+    document.getElementById('signInBtn')?.addEventListener('click', () => {
+        window.location.href = '/'; // or trigger auth overlay
+    });
 }
 
 function escapeHtml(t){ 
