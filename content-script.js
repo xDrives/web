@@ -438,7 +438,7 @@ async function loadLink() {
             const userPhone = currentUser?.phone ? normalizePhone(currentUser.phone) : null;
 
             if (!userPhone) {
-                showSignInPrompt();
+                showAccessRequestForm();
                 document.getElementById('loading').style.display = 'none';
                 return;
             }
@@ -497,35 +497,34 @@ function showAccessDeniedWithRequest(userPhone) {
     });
 }
 
-async function requestAccess(linkId, requesterPhone) {
-    // Normalize the requester's phone to a consistent format
+async function requestAccess(linkId, requesterPhone, statusElementId = 'requestStatus') {
     const normalizedPhone = normalizePhone(requesterPhone);
-    const statusDiv = document.getElementById('requestStatus');
+    const statusDiv = document.getElementById(statusElementId);
+    if (!statusDiv) return;
     statusDiv.innerHTML = 'Sending request...';
-    const btn = document.getElementById('requestAccessBtn');
-    btn.disabled = true;
+    const btn = document.querySelector('#requestAccessBtn, #requestAccessFromFormBtn');
+    if (btn) btn.disabled = true;
 
     try {
-        // Encode the phone for use in Firebase path (removes special chars)
         const encodedPhone = encodePhone(normalizedPhone);
         const requestPath = `accessRequests/${linkId}/${encodedPhone}`;
         const requestData = {
             requestedAt: Date.now(),
             status: 'pending',
-            requesterPhone: normalizedPhone   // store normalized version
+            requesterPhone: normalizedPhone
         };
         const success = await putData(requestPath, requestData);
         if (success) {
-            statusDiv.innerHTML = 'Access request sent! The owner will review it.';
-            btn.style.display = 'none';
+            statusDiv.innerHTML = '✅ Access request sent! The owner will review it.';
+            if (btn) btn.style.display = 'none';
         } else {
-            statusDiv.innerHTML = 'Failed to send request. Please try again.';
-            btn.disabled = false;
+            statusDiv.innerHTML = '❌ Failed to send request. Please try again.';
+            if (btn) btn.disabled = false;
         }
     } catch (err) {
         console.error('Request error:', err);
-        statusDiv.innerHTML = 'Error sending request. Please try again.';
-        btn.disabled = false;
+        statusDiv.innerHTML = '❌ Error sending request. Please try again.';
+        if (btn) btn.disabled = false;
     }
 }
 
@@ -607,26 +606,36 @@ function showError(msg, fatal=false){
     },5000); 
 }
 
-function showSignInPrompt() {
+function showAccessRequestForm() {
     const displayDiv = document.getElementById('contentDisplay');
     displayDiv.innerHTML = `
         <div class="destroyed-message" style="text-align:center; padding:12px;">
-            <span class="material-icons" style="font-size:32px; color:var(--warning);">login</span>
-            <h3 style="margin-top:12px;">Please Sign In</h3>
-            <p style="margin-top:8px; opacity:0.8;">This content is shared with specific users. Please sign in to xDrive to access it.</p>
-            <button id="signInBtn" class="btn btn-primary" style="margin-top:12px;">
-                <i class="fas fa-sign-in-alt"></i> Sign In
-            </button>
+            <span class="material-icons" style="font-size:32px; color:var(--warning);">person_add</span>
+            <h3 style="margin-top:12px;">Request Access</h3>
+            <p style="margin-top:8px; opacity:0.8;">This content is shared with specific users. Enter your phone number to request access.</p>
+            <div style="margin-top:12px; max-width:300px; margin-left:auto; margin-right:auto;">
+                <input type="tel" id="requestPhoneInput" class="form-input" placeholder="Enter your phone number" style="width:100%; padding:8px;">
+                <button id="requestAccessFromFormBtn" class="btn btn-primary" style="margin-top:8px; width:100%;">
+                    <i class="fas fa-paper-plane"></i> Request Access
+                </button>
+            </div>
+            <div id="requestStatusForm" style="margin-top:12px; font-size:0.75rem;"></div>
         </div>
     `;
     document.getElementById('unlockSection').style.display = 'none';
     document.getElementById('contentSection').style.display = 'block';
 
-    document.getElementById('signInBtn')?.addEventListener('click', () => {
-        window.location.href = '/'; // or trigger auth overlay
+    document.getElementById('requestAccessFromFormBtn')?.addEventListener('click', () => {
+        const phoneInput = document.getElementById('requestPhoneInput');
+        const phone = phoneInput ? phoneInput.value.trim() : '';
+        if (!phone) {
+            document.getElementById('requestStatusForm').innerHTML = 'Please enter your phone number.';
+            return;
+        }
+        // Call requestAccess with the entered phone and the form's status div ID
+        requestAccess(linkId, phone, 'requestStatusForm');
     });
 }
-
 function escapeHtml(t){ 
     if(!t) return ''; 
     const div=document.createElement('div'); 
@@ -682,7 +691,6 @@ function setupApkDownload() {
     apkLink.download = 'xDrive.apk';
 }
 
-// Add this helper at the top (after the existing helpers)
 function normalizePhone(phone) {
     if (!phone) return '';
     const trimmed = phone.trim();
