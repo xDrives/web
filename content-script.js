@@ -542,7 +542,8 @@ async function requestAccess(linkId, requesterPhone, statusElementId = 'requestS
 
 function encodePhone(phone) {
     if (!phone) return '';
-    const cleaned = phone.replace(/[^\d+]/g, '');
+    const cleaned = phone.replace(/\D/g, '');   // digits only
+    // (optional) keep the existing replacements if you have dots or @ in emails
     return cleaned.replace(/\./g, ',').replace(/@/g, '-at-');
 }
 
@@ -706,12 +707,7 @@ function setupApkDownload() {
 
 function normalizePhone(phone) {
     if (!phone) return '';
-    const trimmed = phone.trim();
-    if (trimmed.startsWith('+')) {
-        const digits = trimmed.substring(1).replace(/\D/g, '');
-        return '+' + digits;
-    }
-    return trimmed.replace(/\D/g, '');
+    return phone.replace(/\D/g, '');   // keep only digits
 }
 
 function getStoredVisitorPhone() {
