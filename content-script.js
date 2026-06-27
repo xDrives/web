@@ -513,6 +513,25 @@ async function requestAccess(linkId, requesterPhone, statusElementId = 'requestS
     const normalizedPhone = normalizePhone(requesterPhone);
     const statusDiv = document.getElementById(statusElementId);
     if (!statusDiv) return;
+
+    // 1. Check if this phone is already in the allowed list
+    if (linkData.allowedPhones && linkData.allowedPhones.length > 0) {
+        const normalizedAllowed = linkData.allowedPhones.map(p => normalizePhone(p));
+        if (normalizedAllowed.includes(normalizedPhone)) {
+            // Authorised – store phone, mark as authorized, and display content
+            setStoredVisitorPhone(normalizedPhone);
+            linkData._authorizedByShareWith = true;
+            statusDiv.innerHTML = 'Access granted! Loading content...';
+            try {
+                await displayContent();
+            } catch (e) {
+                showError('Error loading content: ' + e.message);
+            }
+            return;
+        }
+    }
+
+    // 2. Not allowed – send a request to the owner
     statusDiv.innerHTML = 'Sending request...';
     const btn = document.querySelector('#requestAccessBtn, #requestAccessFromFormBtn');
     if (btn) btn.disabled = true;
@@ -527,15 +546,15 @@ async function requestAccess(linkId, requesterPhone, statusElementId = 'requestS
         };
         const success = await putData(requestPath, requestData);
         if (success) {
-            statusDiv.innerHTML = '✅ Access request sent! The owner will review it. <button id="refreshAfterApproval" class="btn btn-small" style="margin-left:8px;" onclick="location.reload()">Refresh after approval</button>';
+            statusDiv.innerHTML = 'Access request sent! The owner will review it. <button id="refreshAfterApproval" class="btn btn-small" style="margin-left:8px;" onclick="location.reload()">Refresh after approval</button>';
             if (btn) btn.style.display = 'none';
         } else {
-            statusDiv.innerHTML = '❌ Failed to send request. Please try again.';
+            statusDiv.innerHTML = 'Failed to send request. Please try again.';
             if (btn) btn.disabled = false;
         }
     } catch (err) {
         console.error('Request error:', err);
-        statusDiv.innerHTML = '❌ Error sending request. Please try again.';
+        statusDiv.innerHTML = 'Error sending request. Please try again.';
         if (btn) btn.disabled = false;
     }
 }
