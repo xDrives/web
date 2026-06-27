@@ -395,39 +395,13 @@ function resetToUnlock() {
 function showAccessMessage() {
     const openDiv = document.getElementById('openAccessMessage');
     const passDiv = document.getElementById('passwordAccessMessage');
-    if (linkData._authorizedByShareWith) {
-        openDiv.style.display = 'block';
-        passDiv.style.display = 'none';
-    } else if (linkData.hasPassword) {
+    if (linkData.hasPassword) {
         openDiv.style.display = 'none';
         passDiv.style.display = 'block';
     } else {
         openDiv.style.display = 'block';
         passDiv.style.display = 'none';
     }
-}
-
-function showSignInPrompt() {
-    const displayDiv = document.getElementById('contentDisplay');
-    displayDiv.innerHTML = `
-        <div class="destroyed-message" style="text-align:center; padding:20px;">
-            <span class="material-icons" style="font-size:48px; color:var(--warning);">login</span>
-            <h3 style="margin-top:12px;">Sign In Required</h3>
-            <p style="margin-top:8px; opacity:0.8;">This content is shared with specific users. Please sign in to continue.</p>
-            <button id="signInBtn" class="btn btn-primary" style="margin-top:16px; padding:10px 24px;">
-                <i class="fas fa-sign-in-alt"></i> Sign In
-            </button>
-            <div id="signInStatus" style="margin-top:12px; font-size:0.75rem;"></div>
-        </div>
-    `;
-    document.getElementById('unlockSection').style.display = 'none';
-    document.getElementById('contentSection').style.display = 'block';
-
-    document.getElementById('signInBtn')?.addEventListener('click', () => {
-        // Redirect to the main app login page (adjust URL as needed)
-        const loginUrl = window.location.origin + '/login'; // or wherever your login page is
-        window.location.href = loginUrl;
-    });
 }
 
 function isLinkAccessible(data) {
@@ -438,7 +412,7 @@ function isLinkAccessible(data) {
     return true;
 }
 
-// ========== FIXED: AUTHORIZATION CHECK WITH TOKEN REPAIR ==========
+// ========== LOAD LINK (no allowed‑user logic) ==========
 async function loadLink() {
     if (!linkId) { showError('Invalid link: missing content ID.', true); return; }
     document.getElementById('loading').style.display = 'block';
@@ -449,33 +423,6 @@ async function loadLink() {
             showError('Link not found or has been deleted.', true); 
             return; 
         }
-
-        // --- Check "Share With" restrictions (using phone numbers) ---
-if (linkData.allowedPhones && linkData.allowedPhones.length > 0) {
-    // --- Get phone from authToken only ---
-    let userPhone = getPhoneFromAuthToken();
-    if (userPhone) {
-        userPhone = normalizePhone(userPhone);
-    }
-
-    // If no phone, show sign‑in option instead of access‑request form
-    if (!userPhone) {
-        showSignInPrompt();
-        document.getElementById('loading').style.display = 'none';
-        return;
-    }
-
-    const normalizedAllowed = linkData.allowedPhones.map(p => normalizePhone(p));
-    if (!normalizedAllowed.includes(userPhone)) {
-        // User is not in the allowed list – show deny/request screen
-        showAccessDeniedWithRequest(userPhone);
-        document.getElementById('loading').style.display = 'none';
-        return;
-    }
-
-    // Authorized
-    linkData._authorizedByShareWith = true;
-}
 
         if (!isLinkAccessible(linkData)) {
             let msg = 'Link is not accessible.';
@@ -499,95 +446,8 @@ if (linkData.allowedPhones && linkData.allowedPhones.length > 0) {
     }
 }
 
-function showAccessDeniedWithRequest(userPhone) {
-    const displayDiv = document.getElementById('contentDisplay');
-    displayDiv.innerHTML = `
-        <div class="destroyed-message" style="text-align:center; padding:12px;">
-            <span class="material-icons" style="font-size:32px; color:var(--danger);">block</span>
-            <h3 style="margin-top:12px;">Access Denied</h3>
-            <p style="margin-top:8px; opacity:0.8;">You are not on the allowed user list for this content.</p>
-            <button id="requestAccessBtn" class="btn btn-primary" style="margin-top:12px;">
-                <i class="fas fa-paper-plane"></i> Request Access
-            </button>
-            <div id="requestStatus" style="margin-top:12px; font-size:0.75rem;"></div>
-        </div>
-    `;
-    document.getElementById('unlockSection').style.display = 'none';
-    document.getElementById('contentSection').style.display = 'block';
-
-    document.getElementById('requestAccessBtn')?.addEventListener('click', () => {
-        requestAccess(linkId, userPhone);
-    });
-}
-
-async function requestAccess(linkId, requesterPhone, statusElementId = 'requestStatus') {
-    const normalizedPhone = normalizePhone(requesterPhone);
-    const statusDiv = document.getElementById(statusElementId);
-    if (!statusDiv) return;
-
-    // 1. Check if this phone is already in the allowed list
-    if (linkData.allowedPhones && linkData.allowedPhones.length > 0) {
-        const normalizedAllowed = linkData.allowedPhones.map(p => normalizePhone(p));
-        if (normalizedAllowed.includes(normalizedPhone)) {
-            linkData._authorizedByShareWith = true;
-            statusDiv.innerHTML = 'Access granted! Loading content...';
-            try {
-                await displayContent();
-            } catch (e) {
-                showError('Error loading content: ' + e.message);
-            }
-            return;
-        }
-    }
-
-    // 2. Not allowed – send a request to the owner
-    statusDiv.innerHTML = 'Sending request...';
-    const btn = document.querySelector('#requestAccessBtn, #requestAccessFromFormBtn');
-    if (btn) btn.disabled = true;
-
-    try {
-        const encodedPhone = encodePhone(normalizedPhone);
-        const requestPath = `accessRequests/${linkId}/${encodedPhone}`;
-        const requestData = {
-            requestedAt: Date.now(),
-            status: 'pending',
-            requesterPhone: normalizedPhone
-        };
-        const success = await putData(requestPath, requestData);
-        if (success) {
-            statusDiv.innerHTML = 'Access request sent! The owner will review it. <button id="refreshAfterApproval" class="btn btn-small" style="margin-left:8px;" onclick="location.reload()">Refresh after approval</button>';
-            if (btn) btn.style.display = 'none';
-        } else {
-            statusDiv.innerHTML = 'Failed to send request. Please try again.';
-            if (btn) btn.disabled = false;
-        }
-    } catch (err) {
-        console.error('Request error:', err);
-        statusDiv.innerHTML = 'Error sending request. Please try again.';
-        if (btn) btn.disabled = false;
-    }
-}
-
-function encodePhone(phone) {
-    if (!phone) return '';
-    const cleaned = phone.replace(/\D/g, '');   // digits only
-    // (optional) keep the existing replacements if you have dots or @ in emails
-    return cleaned.replace(/\./g, ',').replace(/@/g, '-at-');
-}
-
 async function viewOpenContent() { 
     if(isContentDisplayed) return; 
-    if (linkData._authorizedByShareWith) {
-        document.getElementById('loading').style.display = 'block';
-        try {
-            await displayContent();
-        } catch (e) {
-            showError(e.message);
-        } finally {
-            document.getElementById('loading').style.display = 'none';
-        }
-        return;
-    }
     document.getElementById('loading').style.display='block'; 
     try{ 
         await displayContent(); 
@@ -600,7 +460,8 @@ async function viewOpenContent() {
 
 async function verifyAndUnlock() {
     if(isContentDisplayed) return;
-    if (linkData._authorizedByShareWith) {
+    if (!linkData.hasPassword) {
+        // If no password, just display (should not happen if button hidden, but safety)
         await displayContent();
         return;
     }
@@ -645,60 +506,6 @@ function showError(msg, fatal=false){
     setTimeout(()=>{ 
         errDiv.style.display='none'; 
     },5000); 
-}
-
-function showAccessRequestForm() {
-    const displayDiv = document.getElementById('contentDisplay');
-    displayDiv.innerHTML = `
-        <div class="destroyed-message" style="text-align:center; padding:12px;">
-            <span class="material-icons" style="font-size:32px; color:var(--warning);">person_add</span>
-            <h3 style="margin-top:12px;">Request Access</h3>
-            <p style="margin-top:8px; opacity:0.8;">This content is shared with specific users. Enter your phone number to request access.</p>
-            <div style="margin-top:12px; max-width:300px; margin-left:auto; margin-right:auto;">
-                <input type="tel" id="requestPhoneInput" class="form-input" placeholder="Enter your phone number" style="width:100%; padding:8px;">
-                <button id="requestAccessFromFormBtn" class="btn btn-primary" style="margin-top:8px; width:100%;">
-                    <i class="fas fa-paper-plane"></i> Request Access
-                </button>
-            </div>
-            <div id="requestStatusForm" style="margin-top:12px; font-size:0.75rem;"></div>
-        </div>
-    `;
-    document.getElementById('unlockSection').style.display = 'none';
-    document.getElementById('contentSection').style.display = 'block';
-
-    document.getElementById('requestAccessFromFormBtn')?.addEventListener('click', () => {
-        const phoneInput = document.getElementById('requestPhoneInput');
-        const phone = phoneInput ? phoneInput.value.trim() : '';
-        if (!phone) {
-            document.getElementById('requestStatusForm').innerHTML = 'Please enter your phone number.';
-            return;
-        }
-        requestAccess(linkId, phone, 'requestStatusForm');
-    });
-}
-
-// ========== NEW: Get phone from authToken ==========
-function getPhoneFromAuthToken() {
-    const token = localStorage.getItem('authToken');
-    if (!token) return null;
-
-    try {
-        // Try to parse as JSON (in case the token is an object with a 'phone' field)
-        const parsed = JSON.parse(token);
-        if (parsed && typeof parsed === 'object' && parsed.phone) {
-            return parsed.phone;
-        }
-        // If it's a string, treat it as the phone number itself
-        if (typeof parsed === 'string') {
-            return parsed;
-        }
-    } catch (e) {
-        // If parsing fails, assume the token itself is the phone number string
-        if (typeof token === 'string') {
-            return token;
-        }
-    }
-    return null;
 }
 
 function escapeHtml(t){ 
@@ -754,11 +561,6 @@ function setupApkDownload() {
     const apkLink = document.getElementById('apkDownloadLink');
     apkLink.href = 'xDrive.apk';
     apkLink.download = 'xDrive.apk';
-}
-
-function normalizePhone(phone) {
-    if (!phone) return '';
-    return phone.replace(/\D/g, '');   // keep only digits
 }
 
 // Event binding
