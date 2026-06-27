@@ -407,6 +407,29 @@ function showAccessMessage() {
     }
 }
 
+function showSignInPrompt() {
+    const displayDiv = document.getElementById('contentDisplay');
+    displayDiv.innerHTML = `
+        <div class="destroyed-message" style="text-align:center; padding:20px;">
+            <span class="material-icons" style="font-size:48px; color:var(--warning);">login</span>
+            <h3 style="margin-top:12px;">Sign In Required</h3>
+            <p style="margin-top:8px; opacity:0.8;">This content is shared with specific users. Please sign in to continue.</p>
+            <button id="signInBtn" class="btn btn-primary" style="margin-top:16px; padding:10px 24px;">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
+            <div id="signInStatus" style="margin-top:12px; font-size:0.75rem;"></div>
+        </div>
+    `;
+    document.getElementById('unlockSection').style.display = 'none';
+    document.getElementById('contentSection').style.display = 'block';
+
+    document.getElementById('signInBtn')?.addEventListener('click', () => {
+        // Redirect to the main app login page (adjust URL as needed)
+        const loginUrl = window.location.origin + '/login'; // or wherever your login page is
+        window.location.href = loginUrl;
+    });
+}
+
 function isLinkAccessible(data) {
     if (!data) return false;
     if (data.status === 'pending') return false;
@@ -428,35 +451,23 @@ async function loadLink() {
         }
 
         // --- Check "Share With" restrictions (using phone numbers) ---
-        // In loadLink, after fetching linkData
 if (linkData.allowedPhones && linkData.allowedPhones.length > 0) {
-    const currentUserStr = localStorage.getItem('currentUser');
-    let currentUser = null;
-    try {
-        currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
-    } catch (e) { console.warn('Failed to parse currentUser:', e); }
-
-    let userPhone = currentUser?.phone ? normalizePhone(currentUser.phone) : null;
-    if (!userPhone) {
-        const storedPhone = getStoredVisitorPhone();
-        if (storedPhone) {
-            userPhone = normalizePhone(storedPhone);
-        }
-    }
-
-    // Save the phone for future visits
+    // --- Get phone from authToken only ---
+    let userPhone = getPhoneFromAuthToken();
     if (userPhone) {
-        setStoredVisitorPhone(userPhone);
+        userPhone = normalizePhone(userPhone);
     }
 
+    // If no phone, show sign‑in option instead of access‑request form
     if (!userPhone) {
-        showAccessRequestForm();
+        showSignInPrompt();
         document.getElementById('loading').style.display = 'none';
         return;
     }
 
     const normalizedAllowed = linkData.allowedPhones.map(p => normalizePhone(p));
     if (!normalizedAllowed.includes(userPhone)) {
+        // User is not in the allowed list – show deny/request screen
         showAccessDeniedWithRequest(userPhone);
         document.getElementById('loading').style.display = 'none';
         return;
@@ -518,8 +529,6 @@ async function requestAccess(linkId, requesterPhone, statusElementId = 'requestS
     if (linkData.allowedPhones && linkData.allowedPhones.length > 0) {
         const normalizedAllowed = linkData.allowedPhones.map(p => normalizePhone(p));
         if (normalizedAllowed.includes(normalizedPhone)) {
-            // Authorised – store phone, mark as authorized, and display content
-            setStoredVisitorPhone(normalizedPhone);
             linkData._authorizedByShareWith = true;
             statusDiv.innerHTML = 'Access granted! Loading content...';
             try {
@@ -664,9 +673,32 @@ function showAccessRequestForm() {
             document.getElementById('requestStatusForm').innerHTML = 'Please enter your phone number.';
             return;
         }
-        setStoredVisitorPhone(phone);
         requestAccess(linkId, phone, 'requestStatusForm');
     });
+}
+
+// ========== NEW: Get phone from authToken ==========
+function getPhoneFromAuthToken() {
+    const token = localStorage.getItem('authToken');
+    if (!token) return null;
+
+    try {
+        // Try to parse as JSON (in case the token is an object with a 'phone' field)
+        const parsed = JSON.parse(token);
+        if (parsed && typeof parsed === 'object' && parsed.phone) {
+            return parsed.phone;
+        }
+        // If it's a string, treat it as the phone number itself
+        if (typeof parsed === 'string') {
+            return parsed;
+        }
+    } catch (e) {
+        // If parsing fails, assume the token itself is the phone number string
+        if (typeof token === 'string') {
+            return token;
+        }
+    }
+    return null;
 }
 
 function escapeHtml(t){ 
@@ -727,18 +759,6 @@ function setupApkDownload() {
 function normalizePhone(phone) {
     if (!phone) return '';
     return phone.replace(/\D/g, '');   // keep only digits
-}
-
-function getStoredVisitorPhone() {
-    return localStorage.getItem('xdrive_visitor_phone') || null;
-}
-
-function setStoredVisitorPhone(phone) {
-    if (phone) {
-        localStorage.setItem('xdrive_visitor_phone', phone);
-    } else {
-        localStorage.removeItem('xdrive_visitor_phone');
-    }
 }
 
 // Event binding
