@@ -158,7 +158,7 @@ function startViewOnceCountdown(callback) {
                 const mainDisplayDiv = document.getElementById('contentDisplay');
                 mainDisplayDiv.innerHTML = `
                     <div class="destroyed-message">
-                        <span class="material-icons">delete_forever</span>
+                        <i class="fa-regular fa-trash-can"></i>
                         <h3 style="margin-bottom: 12px; font-weight: 600;">Content Destroyed</h3>
                         <p style="font-size:0.85rem;">This content was set to "View Once" mode and has been permanently destroyed.</p>
                         <p style="font-size:0.75rem; margin-top:12px; opacity:0.7;">The secure link is no longer valid.</p>
@@ -186,7 +186,7 @@ function buildMixedHTML() {
     
     let html = `<div class="content-display-card">
         <div class="content-header">
-            <div class="content-title"><span class="material-icons">article</span> ${escapeHtml(title)}</div>
+            <div class="content-title"><i class="fa-regular fa-file-lines"></i> ${escapeHtml(title)}</div>
             <div class="badge-group">${accessBadge} ${viewOnceBadge}</div>
         </div>`;
     
@@ -203,8 +203,9 @@ function buildMixedHTML() {
             const watermarkHtml = linkData.watermarkText ? 
                 `<span class="watermarked-image" data-watermark="${escapeHtml(linkData.watermarkText)}">${imgHtml}</span>` : 
                 imgHtml;
+            const isWatermarked = linkData.watermarkText ? 'true' : 'false';
             html += `
-                <div class="photo-card-xdrive" data-photo-index="${idx}">
+                <div class="photo-card-xdrive" data-photo-index="${idx}" data-watermarked="${isWatermarked}">
                     ${watermarkHtml}
                     <div class="photo-info">
                         <div class="photo-meta">${photo.size ? photo.size : ''} ${photo.date ? photo.date : ''}</div>
@@ -228,7 +229,7 @@ function buildTextHTML() {
     return `
         <div class="content-display-card">
             <div class="content-header">
-                <div class="content-title"><span class="material-icons">description</span> ${escapeHtml(title)}</div>
+                <div class="content-title"><i class="fa-regular fa-file-lines"></i> ${escapeHtml(title)}</div>
                 <div class="badge-group">${accessBadge} ${viewOnceBadge}</div>
             </div>
             <div class="content-body-text">${escapeHtml(linkData.content || 'No content available.').replace(/\n/g, '<br>')}</div>
@@ -250,7 +251,7 @@ function buildPhotoHTML() {
     currentPhotos = photos;
     let galleryHTML = `<div class="content-display-card">
         <div class="content-header">
-            <div class="content-title"><span class="material-icons">photo_library</span> ${escapeHtml(title)}</div>
+            <div class="content-title"><i class="fa-regular fa-images"></i> ${escapeHtml(title)}</div>
             <div class="badge-group"><span class="badge-xdrive badge-photos">${photos.length} photo${photos.length !== 1 ? 's' : ''}</span>${accessBadge}${viewOnceBadge}</div>
         </div>
         <div class="photo-gallery-xdrive" id="photoGalleryGrid">`;
@@ -259,8 +260,9 @@ function buildPhotoHTML() {
         const watermarkHtml = linkData.watermarkText ? 
             `<span class="watermarked-image" data-watermark="${escapeHtml(linkData.watermarkText)}">${imgHtml}</span>` : 
             imgHtml;
+        const isWatermarked = linkData.watermarkText ? 'true' : 'false';
         galleryHTML += `
-            <div class="photo-card-xdrive" data-photo-index="${idx}">
+            <div class="photo-card-xdrive" data-photo-index="${idx}" data-watermarked="${isWatermarked}">
                 ${watermarkHtml}
                 <div class="photo-info">
                     <div class="photo-meta">${photo.size ? photo.size : ''} ${photo.date ? photo.date : ''}</div>
@@ -327,6 +329,8 @@ function attachPhotoEvents() {
     if (!gallery) return;
     document.querySelectorAll('.photo-card-xdrive').forEach(card => {
         card.addEventListener('click', (e) => {
+            // If watermarked, do nothing (unclickable)
+            if (card.dataset.watermarked === 'true') return;
             const idx = parseInt(card.getAttribute('data-photo-index'));
             if (!isNaN(idx)) openPhotoModal(idx);
         });
@@ -384,7 +388,7 @@ function resetToUnlock() {
         showError('This link has been destroyed (View Once mode already consumed).', true);
         document.getElementById('unlockSection').style.display = 'none';
         document.getElementById('contentSection').style.display = 'block';
-        document.getElementById('contentDisplay').innerHTML = `<div class="destroyed-message"><span class="material-icons">warning</span><h3>Content Destroyed</h3><p>View Once content already viewed & destroyed.</p></div>`;
+        document.getElementById('contentDisplay').innerHTML = `<div class="destroyed-message"><i class="fa-regular fa-triangle-exclamation"></i><h3>Content Destroyed</h3><p>View Once content already viewed & destroyed.</p></div>`;
         const backBtn = document.getElementById('backToUnlockBtn');
         if(backBtn) backBtn.disabled = true;
         return;
@@ -431,7 +435,7 @@ async function loadLink() {
             showError(msg, true);
             document.getElementById('unlockSection').style.display = 'none';
             document.getElementById('contentSection').style.display = 'block';
-            document.getElementById('contentDisplay').innerHTML = `<div class="destroyed-message"><span class="material-icons">gpp_bad</span><h3>Content Unavailable</h3><p>${escapeHtml(msg)}</p></div>`;
+            document.getElementById('contentDisplay').innerHTML = `<div class="destroyed-message"><i class="fa-solid fa-shield-slash"></i><h3>Content Unavailable</h3><p>${escapeHtml(msg)}</p></div>`;
             document.getElementById('loading').style.display = 'none';
             return;
         }
@@ -549,7 +553,13 @@ function showTemporaryMessage(msg, type = 'info') {
     const msgDiv = document.createElement('div');
     msgDiv.id = 'tempShareMsg';
     msgDiv.className = `temp-message ${type}`;
-    msgDiv.innerHTML = `<span class="material-icons">${type === 'success' ? 'check_circle' : (type === 'info' ? 'info' : 'error')}</span> ${msg}`;
+    
+    let iconClass = '';
+    if (type === 'success') iconClass = 'fa-regular fa-circle-check';
+    else if (type === 'info') iconClass = 'fa-regular fa-circle-info';
+    else iconClass = 'fa-regular fa-circle-exclamation';
+    
+    msgDiv.innerHTML = `<i class="${iconClass}"></i> ${msg}`;
     const buttonGroup = document.querySelector('.button-group');
     if (buttonGroup) {
         buttonGroup.parentNode.insertBefore(msgDiv, buttonGroup.nextSibling);

@@ -73,7 +73,7 @@ body {
     gap: 10px;
 }
 
-.header-brand .material-icons {
+.header-brand i {
     font-size: 28px;
     color: var(--primary);
 }
@@ -100,7 +100,7 @@ body {
     color: var(--primary-light);
 }
 
-.security-chip .material-icons {
+.security-chip i {
     font-size: 16px;
 }
 
@@ -142,15 +142,17 @@ body {
 
 /* Buttons - xdrive style */
 .btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 6px;
+    padding: 6px 14px;
     border-radius: var(--radius-sm);
-    font-weight: 800;
-    font-size: 0.7rem;
+    font-weight: 600;
+    font-size: 0.85rem;
     cursor: pointer;
     border: none;
-    gap: 4px;
+    gap: 6px;
+    transition: all 0.2s ease;
 }
 
 .btn-primary {
@@ -159,20 +161,24 @@ body {
     border: 1px solid rgba(33, 158, 188, 0.4);
 }
 
+.btn-primary:hover {
+    background: rgba(33, 158, 188, 0.5);
+}
+
 .btn-secondary {
     background: rgba(131, 132, 133, 0.3);
-    color: var(--text);
+    color: var(--text-primary);
     border: 1px solid rgba(134, 134, 134, 0.4);
+}
+
+.btn-secondary:hover {
+    background: rgba(131, 132, 133, 0.5);
 }
 
 .btn-warning {
     background: rgba(187, 120, 13, 0.3);
     color: var(--warning);
     border: 1px solid rgba(187, 120, 13, 0.4);
-}
-
-.btn-full {
-    width: 100%;
 }
 
 /* Content display - xdrive cards */
@@ -269,6 +275,20 @@ body {
     box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
+/* Watermarked photos – not clickable */
+.photo-card-xdrive[data-watermarked="true"] {
+    cursor: default;
+    transform: none !important;
+    box-shadow: none !important;
+    border-color: var(--border) !important;
+}
+
+.photo-card-xdrive[data-watermarked="true"]:hover {
+    transform: none !important;
+    border-color: var(--border) !important;
+    box-shadow: none !important;
+}
+
 .photo-card-xdrive img {
     width: 100%;
     aspect-ratio: 1;
@@ -333,7 +353,7 @@ body {
     flex-wrap: wrap;
 }
 
-.apk-info .material-icons {
+.apk-info i {
     font-size: 28px;
     color: var(--primary);
 }
@@ -369,7 +389,7 @@ body {
     transform: translateY(0);
 }
 
-.apk-download-btn .material-icons {
+.apk-download-btn i {
     font-size: 16px;
 }
 
@@ -389,7 +409,7 @@ body {
     margin: 12px;
 }
 
-.destroyed-message .material-icons {
+.destroyed-message i {
     font-size: 32px;
     color: var(--danger);
     margin-bottom: 12px;
@@ -540,19 +560,17 @@ body {
     color: var(--danger);
 }
 
-.temp-message .material-icons {
+.temp-message i {
     font-size: 16px;
 }
-
-
 
 /* ========== WATERMARK WITH GRID & BLUR – FORCED VISIBLE ========== */
 .watermarked-image {
     position: relative;
-    display: block !important;       /* ensure block-level */
+    display: block !important;
     width: 100%;
     overflow: hidden;
-    background: #000;               /* fallback if image fails */
+    background: #000;
 }
 
 /* Grid overlay – dark, thick, high contrast */
@@ -580,7 +598,6 @@ body {
             transparent 3px,
             transparent 15px
         );
-    /* Crosshatch effect – diagonal lines too (optional) */
     background-blend-mode: multiply;
 }
 
@@ -589,7 +606,7 @@ body {
     display: block;
     width: 100%;
     height: auto;
-    filter: blur(3px) !important;    /* noticeable blur */
+    filter: blur(3px) !important;
     transition: filter 0.2s ease;
 }
 
