@@ -107,17 +107,17 @@ class PhotosModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return;
 
             console.log('Setting up Firebase real-time listeners...');
 
             // Listen for photos changes
-            const photosRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/photos`);
+            const photosRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/photos`);
             this.setupFirebaseListener('photos', photosRef);
 
             // Listen for albums changes
-            const albumsRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/albums`);
+            const albumsRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/albums`);
             this.setupFirebaseListener('albums', albumsRef);
 
             // Load initial data from Firebase
@@ -168,7 +168,7 @@ class PhotosModule {
         try {
             // Load photos from cache (keep as empty array if none)
             const cachedPhotos = await this.getAllFromIndexedDB('photos');
-            this.photos = cachedPhotos || []; // Changed: no fallback to defaults
+            this.photos = cachedPhotos || [];
             
             // Load albums from cache
             const cachedAlbums = await this.getAllFromIndexedDB('albums');
@@ -195,8 +195,8 @@ class PhotosModule {
             
         } catch (error) {
             console.error('Error loading from IndexedDB:', error);
-            this.photos = []; // Changed: empty array instead of defaults
-            this.albums = this.getDefaultAlbums(); // Keep system albums
+            this.photos = [];
+            this.albums = this.getDefaultAlbums();
         }
     }
 
@@ -211,13 +211,13 @@ class PhotosModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return;
 
             console.log('Loading data from Firebase...');
 
             // Load photos
-            const photosRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/photos`);
+            const photosRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/photos`);
             const photosSnapshot = await photosRef.once('value');
             const photosData = photosSnapshot.val();
 
@@ -226,11 +226,11 @@ class PhotosModule {
                 this.photos = firebasePhotos;
                 await this.saveAllToIndexedDB('photos', firebasePhotos);
             } else {
-                this.photos = []; // Changed: empty array instead of defaults
+                this.photos = [];
             }
 
             // Load albums
-            const albumsRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/albums`);
+            const albumsRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/albums`);
             const albumsSnapshot = await albumsRef.once('value');
             const albumsData = albumsSnapshot.val();
 
@@ -444,14 +444,14 @@ class PhotosModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return false;
 
             // Mark as pending operation
             this.pendingOperations.set(`photo:${photo.id}`, true);
 
             // Save to Firebase
-            const photoRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/photos/${photo.id}`);
+            const photoRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/photos/${photo.id}`);
             await photoRef.set(photo);
 
             // Update local cache
@@ -475,7 +475,6 @@ class PhotosModule {
     }
 
     // Delete photo from Firebase
-    // Delete photo from Firebase
     async deletePhotoFromFirebase(photoId) {
         if (!window.authModule || !window.authModule.isLoggedIn()) {
             return false;
@@ -485,14 +484,14 @@ class PhotosModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return false;
 
             // Mark as pending operation
             this.pendingOperations.set(`photo:${photoId}`, true);
 
             // Delete from Firebase
-            const photoRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/photos/${photoId}`);
+            const photoRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/photos/${photoId}`);
             await photoRef.remove();
 
             // Delete from local cache
@@ -519,14 +518,14 @@ class PhotosModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return false;
 
             // Mark as pending operation
             this.pendingOperations.set(`album:${album.id}`, true);
 
             // Save to Firebase
-            const albumRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/albums/${album.id}`);
+            const albumRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/albums/${album.id}`);
             await albumRef.set(album);
 
             // Update local cache
@@ -565,14 +564,14 @@ class PhotosModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return false;
 
             // Mark as pending operation
             this.pendingOperations.set(`album:${albumId}`, true);
 
             // Delete from Firebase
-            const albumRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/albums/${albumId}`);
+            const albumRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/albums/${albumId}`);
             await albumRef.remove();
 
             // Delete from local cache
@@ -3088,14 +3087,14 @@ showNotification(message, type = 'success') {
             if (this.firebaseListeners.photos) {
                 const homeDb = window.authModule?.getHomeDatabaseInstance();
                 if (homeDb && homeDb.db) {
-                    const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-                    if (encodedEmail) {
-                        const photosRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/photos`);
+                    const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+                    if (encodedPhone) {
+                        const photosRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/photos`);
                         photosRef.off('child_added', this.firebaseListeners.photos.added);
                         photosRef.off('child_changed', this.firebaseListeners.photos.changed);
                         photosRef.off('child_removed', this.firebaseListeners.photos.removed);
                         
-                        const albumsRef = homeDb.db.ref(`userData/${encodedEmail}/photosModuleData/albums`);
+                        const albumsRef = homeDb.db.ref(`userData/${encodedPhone}/photosModuleData/albums`);
                         albumsRef.off('child_added', this.firebaseListeners.albums.added);
                         albumsRef.off('child_changed', this.firebaseListeners.albums.changed);
                         albumsRef.off('child_removed', this.firebaseListeners.albums.removed);
@@ -3111,9 +3110,9 @@ showNotification(message, type = 'success') {
                 transaction.objectStore('syncMetadata').clear();
             }
             
-            // Reset to empty state - Changed: no default photos
-            this.photos = []; // Changed from getDefaultPhotos()
-            this.albums = this.getDefaultAlbums(); // Keep system albums
+            // Reset to empty state
+            this.photos = [];
+            this.albums = this.getDefaultAlbums();
             this.selectedFiles = null;
             this.currentFilter = 'home';
             this.editingAlbumId = null;

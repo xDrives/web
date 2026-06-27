@@ -307,9 +307,9 @@ body {
 }
 
 .btn-secondary {
-    background: rgba(108, 117, 125, 0.3);
-    color: var(--secondary);
-    border: 1px solid rgba(108, 117, 125, 0.4);
+    background: rgba(131, 132, 133, 0.3);
+    color: var(--text);
+    border: 1px solid rgba(134, 134, 134, 0.4);
 }
 
 .btn-neutral {
@@ -1704,4 +1704,81 @@ img {
         flex-direction: column;
         text-align: center;
     }
+}
+
+
+
+
+
+
+
+
+
+
+
+/* ===== PHOTO SECTION (matches expiration & security) ===== */
+.photo-section {
+    background: rgba(33, 158, 188, 0.06);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.photo-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(33, 158, 188, 0.06);
+    border-bottom: 1px solid var(--border);
+}
+
+.photo-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.photo-section-title .material-icons {
+    font-size: 22px;
+    color: var(--primary);
+}
+
+.photo-section-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(33, 158, 188, 0.12);
+    padding: 4px 14px;
+    border-radius: 40px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--primary-light);
+    white-space: nowrap;
+}
+
+.photo-section-badge .badge-count {
+    font-weight: 700;
+}
+
+/* Adjust inner spacing */
+.photo-section .photo-selection-grid {
+    padding: 12px 14px 0 14px;
+    margin: 0;
+}
+
+.photo-section #emptyPhotosAction {
+    padding: 0 14px 14px 14px;
+}
+
+/* Remove the old form-group styles that may interfere */
+#createLinkForm .form-group:has(.photo-selection-grid) {
+    /* we don't need extra padding now */
 }

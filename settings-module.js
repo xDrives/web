@@ -1,10 +1,10 @@
-// Enhanced Settings Module with Email Change Functionality
+// Enhanced Settings Module with Phone Number Change Functionality
 class SettingsModule {
     // ========== 1. CONSTRUCTOR & PROPERTIES ==========
     constructor() {
         this.currentSection = 'profile';
         this.userData = null;
-        this.encodedEmail = null;
+        this.encodedPhone = null;
     }
 
     // ========== 2. INITIALIZATION ==========
@@ -14,7 +14,7 @@ class SettingsModule {
             
             if (authModule && authModule.isAuthenticated) {
                 this.userData = authModule.currentUser;
-                this.encodedEmail = this.encodeEmail(this.userData.email);
+                this.encodedPhone = this.encodePhone(this.userData.phone);
                 this.masterDB = authModule.masterDB;
                 
                 console.log('Settings module initialized with auth module data');
@@ -124,13 +124,17 @@ class SettingsModule {
                 }
                 
                 if (input) {
-                    const icon = newBtn.querySelector('.material-icons');
-                    if (input.type === 'password') {
-                        input.type = 'text';
-                        if (icon) icon.textContent = 'visibility_off';
-                    } else {
-                        input.type = 'password';
-                        if (icon) icon.textContent = 'visibility';
+                    const icon = newBtn.querySelector('.fas'); // Font Awesome icon
+                    if (icon) {
+                        if (input.type === 'password') {
+                            input.type = 'text';
+                            icon.classList.remove('fa-eye');
+                            icon.classList.add('fa-eye-slash');
+                        } else {
+                            input.type = 'password';
+                            icon.classList.remove('fa-eye-slash');
+                            icon.classList.add('fa-eye');
+                        }
                     }
                 }
             });
@@ -140,8 +144,8 @@ class SettingsModule {
     // Set user data
     setUserData(userData) {
         this.userData = userData;
-        if (userData?.email && window.dataManager) {
-            this.encodedEmail = window.dataManager.encodeEmail(userData.email);
+        if (userData?.phone && window.dataManager) {
+            this.encodedPhone = window.dataManager.encodePhone(userData.phone);
         }
         console.log('User data set in settings module');
     }
@@ -152,8 +156,8 @@ class SettingsModule {
             const userDataStr = localStorage.getItem('currentUser');
             if (userDataStr) {
                 this.userData = JSON.parse(userDataStr);
-                if (this.userData?.email) {
-                    this.encodedEmail = this.encodeEmail(this.userData.email);
+                if (this.userData?.phone) {
+                    this.encodedPhone = this.encodePhone(this.userData.phone);
                     this.userHomeDatabaseUrl = this.userData.homeDatabaseUrl || 
                                             localStorage.getItem('userHomeDatabaseUrl');
                     this.userHomeDatabase = this.extractDbNameFromUrl(this.userHomeDatabaseUrl);
@@ -171,7 +175,7 @@ class SettingsModule {
             
             if (window.dataManager && window.dataManager.isAuthenticated()) {
                 this.currentUser = window.dataManager.currentUser;
-                this.encodedEmail = window.dataManager.encodedEmail;
+                this.encodedPhone = window.dataManager.encodedPhone;
                 
                 if (window.authModule && window.authModule.isLoggedIn()) {
                     const authUser = window.authModule.getUser();
@@ -322,7 +326,7 @@ class SettingsModule {
 
     getSettingsHTML() {
         const userName = this.userData?.name || 'User';
-        const userEmail = this.userData?.email || 'user@example.com';
+        const userPhone = this.userData?.phone || 'Not set';
         const accountCreated = this.userData?.createdAt ? 
             new Date(this.userData.createdAt).toLocaleDateString() : 'N/A';
         const lastLogin = this.userData?.lastLogin ? 
@@ -336,68 +340,56 @@ class SettingsModule {
             <div class="settings-container">
                 <div class="module-card">
                     <div class="module-icon" style="color: var(--primary);">
-                        <span class="material-icons">settings</span>
+                        <i class="fas fa-cog"></i>
                     </div>
                     <div class="module-info">
                         <div class="module-title">Account Settings</div>
-                        <div class="module-description">Manage your account and email information</div>
+                        <div class="module-description">Manage your account and phone number information</div>
                     </div>
                 </div> 
-
                 <div class="settings-grid">
                     <div class="settings-sidebar">
                         <div class="settings-nav-item active" data-section="profile">
-                            <span class="material-icons settings-nav-icon">person</span>
+                            <i class="fas fa-user settings-nav-icon"></i>
                             <span class="settings-nav-text">Profile</span>
                         </div>
-                        <div class="settings-nav-item" data-section="email">
-                            <span class="material-icons settings-nav-icon">email</span>
-                            <span class="settings-nav-text">Email</span>
-                        </div>
                         <div class="settings-nav-item" data-section="security">
-                            <span class="material-icons settings-nav-icon">lock</span>
+                            <i class="fas fa-lock settings-nav-icon"></i>
                             <span class="settings-nav-text">Password</span>
                         </div>
                         <div class="settings-nav-item" data-section="recovery">
-                            <span class="material-icons settings-nav-icon">vpn_key</span>
+                            <i class="fas fa-key settings-nav-icon"></i>
                             <span class="settings-nav-text">Recovery Codes</span>
                         </div>
                         <div class="settings-nav-item danger" data-section="danger">
-                            <span class="material-icons settings-nav-icon">warning</span>
+                            <i class="fas fa-exclamation-triangle settings-nav-icon"></i>
                             <span class="settings-nav-text">Danger Zone</span>
                         </div>
                     </div>
-
                     <div class="settings-content">
                         <div class="settings-message success" id="settingsSuccess" style="display: none;">
-                            <span class="material-icons">check_circle</span>
+                            <i class="fas fa-check-circle"></i>
                             <span id="successMessage"></span>
-                        </div>
-                        
+                        </div>   
                         <div class="settings-message error" id="settingsError" style="display: none;">
-                            <span class="material-icons">error</span>
+                            <i class="fas fa-exclamation-circle"></i>
                             <span id="errorMessage"></span>
                         </div>
-
                         <!-- Profile Section -->
                         <div class="settings-section active" id="profile-section">
-                            <div class="section-header">
-                                <h2>Profile Information</h2>
-                                <p>Update your personal details</p>
-                            </div>
-
-                            <div class="account-stats" id="accountStats">
-                                <span class="material-icons">${this.getStatusIcon(this.userData?.status)}</span>
-                                <div class="account-stat-info">
-                                    <h3>Account Status</h3>
-                                    <p class="status-${this.userData?.status || 'active'}">
-                                        ${this.getStatusText(this.userData?.status || 'active')}
-                                    </p>
+                            <!-- Profile Card -->
+                            <div class="section-card">
+                                <div class="section-card-header">
+                                    <div class="section-card-title">
+                                        <i class="fas fa-user"></i>
+                                        <span>Profile Information</span>
+                                    </div>
+                                    <div class="section-card-badge">
+                                        <i class="fas fa-edit"></i>
+                                        Update your personal details
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div class="settings-card">
-                                <form class="settings-form" id="profileForm">
+                                <div class="section-card-content" id="profileForm">
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label class="form-label" for="fullName">Full Name *</label>
@@ -405,15 +397,9 @@ class SettingsModule {
                                                 value="${userName}" required>
                                         </div>
                                         <div class="form-group">
-                                            <label class="form-label" for="currentEmail">Current Email</label>
-                                            <input type="email" id="currentEmail" class="form-input" 
-                                                value="${userEmail}" readonly>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="phone">Phone Number</label>
-                                            <input type="tel" id="phone" class="form-input" 
-                                                value="${this.formatPhoneNumber(this.userData?.phone || '')}"
-                                                placeholder="123 456-7890">
+                                            <label class="form-label" for="currentPhone">Current Phone</label>
+                                            <input type="tel" id="currentPhone" class="form-input" 
+                                                value="${userPhone}" readonly>
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">Account Created</label>
@@ -429,84 +415,24 @@ class SettingsModule {
                                             Save Profile Changes
                                         </button>
                                     </div>
-                                </form>
-                            </div>
-                        </div>
-
-                        <!-- Email Change Section -->
-                        <div class="settings-section" id="email-section">
-                            <div class="section-header">
-                                <h2>Change Email Address</h2>
-                                <p>Update your account email address</p>
-                            </div>
-
-                            <div class="settings-card">
-                                <form class="settings-form" id="emailForm">
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label class="form-label" for="currentEmailVerify">Current Email</label>
-                                            <input type="email" id="currentEmailVerify" class="form-input" 
-                                                value="${userEmail}" readonly>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="newEmail">New Email Address *</label>
-                                            <input type="email" id="newEmail" class="form-input" 
-                                                required placeholder="Enter your new email address">
-                                            <div class="form-help">We'll send a verification email to this address</div>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="confirmNewEmail">Confirm New Email *</label>
-                                            <input type="email" id="confirmNewEmail" class="form-input" 
-                                                required placeholder="Re-enter new email address">
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="passwordForEmail">Current Password *</label>
-                                            <div class="password-input-group">
-                                                <input type="password" id="passwordForEmail" class="form-input" 
-                                                    required placeholder="Enter your current password">
-                                                <button type="button" class="toggle-password-btn" 
-                                                        data-target="passwordForEmail">
-                                                    <span class="material-icons">visibility</span>
-                                                </button>
-                                            </div>
-                                            <div class="form-help">For security, please verify your identity</div>
-                                        </div>
-                                    </div>
-                                    <div class="form-actions">
-                                        <button type="submit" class="btn btn-primary" id="changeEmailBtn">
-                                            Change Email Address
-                                        </button>
-                                        <button type="button" class="btn btn-secondary" id="cancelEmailBtn">
-                                            Cancel
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-
-                            <div class="settings-card info">
-                                <div class="info-header">
-                                    <span class="material-icons">info</span>
-                                    <h3>Important Security Notice</h3>
-                                </div>
-                                <div class="info-content">
-                                    <p>Important Information</p>
-                                    <ul>
-                                        <li>Changing your email will update your login credentials</li>
-                                        <li>You'll be prompted for password when opening the app after inactivity</li>
-                                        <li>Your account data will remain unchanged</li>
-                                    </ul>
                                 </div>
                             </div>
                         </div>
-
                         <!-- Security/Password Section -->
                         <div class="settings-section" id="security-section">
-                            <div class="section-header">
-                                <h2>Change Password</h2>
-                                <p>Update your account password</p>
-                            </div>
-                            <div class="settings-card">
-                                <form class="settings-form" id="passwordForm">
+                            <!-- Password Card -->
+                            <div class="section-card">
+                                <div class="section-card-header">
+                                    <div class="section-card-title">
+                                        <i class="fas fa-lock"></i>
+                                        <span>Update Password</span>
+                                    </div>
+                                    <div class="section-card-badge">
+                                        <i class="fas fa-shield-alt"></i>
+                                        Required
+                                    </div>
+                                </div>
+                                <div class="section-card-content" id="passwordForm">
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label class="form-label" for="currentPassword">Current Password</label>
@@ -516,7 +442,7 @@ class SettingsModule {
                                                     placeholder="Enter your current password">
                                                 <button type="button" class="toggle-password-btn" 
                                                         data-target="currentPassword">
-                                                    <span class="material-icons">visibility</span>
+                                                    <i class="fas fa-eye"></i>
                                                 </button>
                                             </div>
                                             <div class="form-help">You must enter your current password to make changes</div>
@@ -529,7 +455,7 @@ class SettingsModule {
                                                     placeholder="Enter new password (min 6 characters)">
                                                 <button type="button" class="toggle-password-btn" 
                                                         data-target="newPassword">
-                                                    <span class="material-icons">visibility</span>
+                                                    <i class="fas fa-eye"></i>
                                                 </button>
                                             </div>
                                             <div class="form-help">Enter a password</div>
@@ -542,7 +468,7 @@ class SettingsModule {
                                                     placeholder="Re-enter new password">
                                                 <button type="button" class="toggle-password-btn" 
                                                         data-target="confirmPassword">
-                                                    <span class="material-icons">visibility</span>
+                                                    <i class="fas fa-eye"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -555,12 +481,11 @@ class SettingsModule {
                                             Cancel
                                         </button>
                                     </div>
-                                </form>
+                                </div>
                             </div>
-
-                            <div class="settings-card info">
+                            <div class="info">
                                 <div class="info-header">
-                                    <span class="material-icons">info</span>
+                                    <i class="fas fa-info-circle"></i>
                                     <h3>Important Security Notice</h3>
                                 </div>
                                 <div class="info-content">
@@ -572,92 +497,120 @@ class SettingsModule {
                                 </div>
                             </div>
                         </div>
-
                         <!-- Recovery Codes Section -->
                         <div class="settings-section" id="recovery-section">
-                            <div class="section-header">
-                                <h2>Recovery Codes</h2>
-                                <p>Manage your account recovery codes</p>
-                            </div>
-
-                            <div class="settings-card">
-                                <div class="recovery-stats" id="recoveryStats"></div>
-
-                                <div class="recovery-actions">
-                                    <button type="button" class="btn btn-primary" id="viewCodesBtn">
-                                        <i class="fas fa-eye"></i> View
-                                    </button>
-                                    <button type="button" class="btn btn-warning" id="generateCodesBtn">
-                                        <i class="fas fa-gears"></i> Generate
-                                    </button>
-                                    <button type="button" class="btn btn-success" id="downloadCodesBtn">
-                                        <i class="fas fa-download"></i> Download
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="settings-card danger" id="recoveryCodesDisplay" style="display: none;">
-                                <div class="codes-display-header">
-                                    <span class="material-icons">lock</span>
-                                    <h3>Your Recovery Codes</h3>
-                                    <p id="codesStatus">Loading...</p>
-                                </div>
-                                
-                                <div class="rec-codes-container" id="codesContainer"></div>
-                                
-                                <div class="codes-actions">
-                                    <button type="button" class="btn btn-primary" id="copyAllCodesBtn">
-                                        <i class="fas fa-copy"></i> Copy All
-                                    </button>
-                                    <button type="button" class="btn btn-secondary" id="hideCodesBtn">
-                                        <i class="fas fa-eye-slash"></i> Hide Codes
-                                    </button>
-                                </div>
-                                
-                                <div class="codes-warning">
-                                    <span class="material-icons">warning</span>
-                                    <p>Keep these codes in a secure place. Each code can be used only once.</p>
-                                </div>
-                            </div>
-
-                            <div class="danger-confirmation danger-confirmation-warning" id="generateCodesConfirmation" style="display: none;">
-                                <div class="confirmation-header">
-                                    <span class="material-icons">warning</span>
-                                    <h3>Generate New Recovery Codes</h3>
-                                </div>
-                                <div class="confirmation-content">
-                                    <p><strong>Warning:</strong> Generating new codes will invalidate all existing recovery codes.</p>
-                                    <p>Any unused recovery codes will no longer work for password reset.</p>
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label class="form-label" for="generateConfirmPassword">Current Password *</label>
-                                            <input type="password" id="generateConfirmPassword" class="form-input" 
-                                                placeholder="Enter your current password to confirm" required>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label" for="generateConfirmText">Confirm</label>
-                                            <input type="text" id="generateConfirmText" class="form-input" 
-                                                placeholder="GENERATE" required>
-                                            <div class="form-help">Type "GENERATE" to confirm *</div>
-                                        </div>
+                            <!-- Main Recovery Card -->
+                            <div class="section-card">
+                                <div class="section-card-header">
+                                    <div class="section-card-title">
+                                        <i class="fas fa-key"></i>
+                                        <span>Recovery Codes</span>
+                                    </div>
+                                    <div class="section-card-badge">
+                                        <i class="fas fa-archive"></i>
+                                        Backup
                                     </div>
                                 </div>
-                                <div class="confirmation-actions">
-                                    <button type="button" class="btn btn-warning" id="confirmGenerateBtn">
-                                        Generate New Codes
-                                    </button>
-                                    <button type="button" class="btn btn-secondary" id="cancelGenerateBtn">
-                                        Cancel
-                                    </button>
+                                <!-- Stats (optional) -->
+                                <div class="recovery-stats" id="recoveryStats"></div>
+                                <!-- ===== View Codes Row ===== -->
+                                <div class="section-option recovery-option" id="viewCodesRow" data-action="view">
+                                    <div class="section-option-info">
+                                        <div class="section-option-icon">
+                                            <i class="fas fa-eye"></i>
+                                        </div>
+                                        <div>
+                                            <div class="section-option-label">View Recovery Codes</div>
+                                            <div class="section-option-desc">View your available recovery codes</div>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-chevron-right action-indicator"></i>
                                 </div>
-                            </div>
-
-                            <div class="settings-card warning">
-                                <div class="warning-header">
-                                    <span class="material-icons">warning</span>
+                                <!-- Inline codes display -->
+                                <div class="section-option-container recovery-codes-container" id="recoveryCodesDisplay" style="display: none;">
+                                    <div class="codes-display-header">
+                                        <i class="fas fa-lock"></i>
+                                        <h3>Your Recovery Codes</h3>
+                                        <p id="codesStatus">Loading...</p>
+                                    </div>
+                                    <div class="rec-codes-container" id="codesContainer"></div>
+                                    <div class="form-help">Keep these codes in a secure place. Each code can be used only once.</div>
+                                    <div class="codes-actions">
+                                        <button type="button" class="btn btn-primary" id="copyAllCodesBtn">
+                                            <i class="fas fa-copy"></i> Copy All
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="hideCodesBtn">
+                                            <i class="fas fa-eye-slash"></i> Hide Codes
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="section-divider"></div>
+                                <!-- ===== Generate Codes Row ===== -->
+                                <div class="section-option recovery-option" id="generateCodesRow" data-action="generate">
+                                    <div class="section-option-info">
+                                        <div class="section-option-icon">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </div>
+                                        <div>
+                                            <div class="section-option-label">Generate New Codes</div>
+                                            <div class="section-option-desc">Generate a new set of recovery codes (invalidates old ones)</div>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-chevron-right action-indicator"></i>
+                                </div>
+                                <!-- Inline generate confirmation -->
+                                <div class="section-option-container recovery-confirmation-container" id="generateCodesConfirmation" style="display: none;">
+                                    <div class="confirmation-content">
+                                        <p><strong>Warning:</strong></p>
+                                        <ul class="section-card-li">
+                                            <li>Generating new codes will invalidate all existing recovery codes.</li>
+                                            <li>Any unused recovery codes will no longer work for password reset.</li>
+                                        </ul>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label class="form-label" for="generateConfirmPassword">Current Password *</label>
+                                                <input type="password" id="generateConfirmPassword" class="form-input"
+                                                    placeholder="Enter your current password to confirm" required>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="generateConfirmText">Confirm</label>
+                                                <input type="text" id="generateConfirmText" class="form-input"
+                                                    placeholder="GENERATE" required>
+                                                <div class="form-help">Type "GENERATE" to confirm *</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="confirmation-actions">
+                                        <button type="button" class="btn btn-warning" id="confirmGenerateBtn">
+                                            Generate New Codes
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="cancelGenerateBtn">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="section-divider"></div>
+                                <!-- ===== Download Codes Row ===== -->
+                                <div class="section-option recovery-option" id="downloadCodesRow" data-action="download">
+                                    <div class="section-option-info">
+                                        <div class="section-option-icon">
+                                            <i class="fas fa-download"></i>
+                                        </div>
+                                        <div>
+                                            <div class="section-option-label">Download Codes</div>
+                                            <div class="section-option-desc">Download your recovery codes as a text file</div>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-chevron-right action-indicator"></i>
+                                </div>
+                            </div><!-- /main recovery card -->
+                            <!-- Security warning -->
+                            <div class="info">
+                                <div class="info-header">
+                                    <i class="fas fa-exclamation-triangle"></i>
                                     <h3>Important Security Notice</h3>
                                 </div>
-                                <div class="warning-content">
+                                <div class="info-content">
                                     <p>Recovery codes are your backup access method if you forget your password.</p>
                                     <ul>
                                         <li>Store codes securely (password manager, encrypted file)</li>
@@ -671,172 +624,148 @@ class SettingsModule {
 
                         <!-- Danger Zone Section -->
                         <div class="settings-section" id="danger-section">
-                            <div class="section-header">
-                                <h2 class="danger-title">Danger Zone</h2>
-                                <p class="danger-subtitle">Irreversible actions - proceed with caution</p>
-                            </div>
-
-                            <div class="settings-card danger">
-                                <div class="danger-option" id="logoutOption" data-action="logout">
-                                    <div class="danger-info">
-                                        <span class="material-icons warning">logout</span>
+                            <!-- Main Danger Card -->
+                            <div class="section-card" style="border: 1px solid rgba(185, 45, 45, 0.4);">
+                                <div class="section-card-header" style="background: rgba(220, 38, 38, 0.08); border-bottom-color: rgba(185, 45, 45, 0.4);">
+                                    <div class="section-card-title">
+                                        <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+                                        <span style="color: var(--danger);">Danger Zone</span>
+                                    </div>
+                                    <div class="section-card-badge" style="background: rgba(220, 38, 38, 0.15); color: var(--danger);">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        Irreversible
+                                    </div>
+                                </div>
+                                <!-- ===== LOGOUT ===== -->
+                                <div class="section-option danger-option" id="logoutOption" data-action="logout">
+                                    <div class="section-option-info">
+                                        <div class="section-option-icon" style="background: rgba(220, 38, 38, 0.15);">
+                                            <i class="fas fa-sign-out-alt warning" style="color: var(--danger);"></i>
+                                        </div>
                                         <div>
-                                            <h4>Logout Account</h4>
-                                            <p>Sign out from this device and return to the login screen</p>
+                                            <div class="section-option-label">Logout Account</div>
+                                            <div class="section-option-desc">Sign out from this device and return to the login screen</div>
                                         </div>
                                     </div>
-                                    <span class="action-indicator material-icons">chevron_right</span>
+                                    <i class="fas fa-chevron-right action-indicator"></i>
                                 </div>
-
-                                <div class="danger-option" id="deactivateOption" data-action="deactivate">
-                                    <div class="danger-info">
-                                        <span class="material-icons warning">pause_circle</span>
-                                        <div>
-                                            <h4>Deactivate Account</h4>
-                                            <p>Temporarily disable your account. You can reactivate it later by contacting support.</p>
-                                        </div>
-                                    </div>
-                                    <span class="action-indicator material-icons">chevron_right</span>
-                                </div>
-
-                                <div class="danger-option" id="deleteOption" data-action="delete">
-                                    <div class="danger-info">
-                                        <span class="material-icons danger">delete_forever</span>
-                                        <div>
-                                            <h4>Permanently Delete Account</h4>
-                                            <p>Completely remove your account and all associated data. This cannot be undone.</p>
-                                        </div>
-                                    </div>
-                                    <span class="action-indicator material-icons">chevron_right</span>
-                                </div>
-                            </div>
-
-                            <div class="danger-confirmation danger-confirmation-warning" id="logoutConfirmation" style="display: none;">
-                                <div class="confirmation-header">
-                                    <span class="material-icons">logout</span>
-                                    <h3>Confirm Logout</h3>
-                                </div>
-                                <div class="confirmation-content">
+                                <div class="section-option-container danger-confirmation-container" id="logoutConfirmation" style="display: none;">
                                     <p>Are you sure you want to logout? You will need to sign in again to access your account.</p>
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label class="form-label" for="logoutConfirmText">Confirm</label>
-                                            <input type="text" id="logoutConfirmText" class="form-input" 
-                                                placeholder="LOGOUT" required>
+                                            <input type="text" id="logoutConfirmText" class="form-input" placeholder="LOGOUT" required>
                                             <div class="form-help">Type "LOGOUT" to confirm *</div>
                                         </div>
                                     </div>
+                                    <div class="confirmation-actions">
+                                        <button type="button" class="btn btn-danger" id="confirmLogoutBtn">
+                                            <i class="fas fa-sign-out-alt"></i> Logout
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="cancelLogoutBtn">Cancel</button>
+                                    </div>
                                 </div>
-                                <div class="confirmation-actions">
-                                    <button type="button" class="btn btn-warning" id="confirmLogoutBtn">
-                                        <i class="fas fa-right-from-bracket"></i> Logout
-                                    </button>
-                                    <button type="button" class="btn btn-secondary" id="cancelLogoutBtn">
-                                        Cancel
-                                    </button>
+                                <div class="section-divider"></div>
+                                <!-- ===== DEACTIVATE ===== -->
+                                <div class="section-option danger-option" id="deactivateOption" data-action="deactivate">
+                                    <div class="section-option-info">
+                                        <div class="section-option-icon" style="background: rgba(220, 38, 38, 0.15);">
+                                            <i class="fas fa-pause-circle warning" style="color: var(--danger);"></i>
+                                        </div>
+                                        <div>
+                                            <div class="section-option-label">Deactivate Account</div>
+                                            <div class="section-option-desc">Temporarily disable your account. You can reactivate it later by contacting support.</div>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-chevron-right action-indicator"></i>
                                 </div>
-                            </div>
-
-                            <div class="danger-confirmation danger-confirmation-warning" id="deactivateConfirmation" style="display: none;">
-                                <div class="confirmation-header">
-                                    <span class="material-icons">pause_circle</span>
-                                    <h3>Deactivate Account with Cooldown Period</h3>
-                                </div>
-                                <div class="confirmation-content">
-                                    <p>Your account will be temporarily disabled for a selected period.</p>
+                                <div class="section-option-container danger-confirmation-container" id="deactivateConfirmation" style="display: none;">
                                     <p><strong>During this period:</strong></p>
-                                    <ul class="cool-down-details">
+                                    <ul class="section-card-li">
                                         <li>You will be immediately logged out</li>
                                         <li>You cannot log in until the cooldown period ends</li>
-                                        <li>Your data will be preserved</li>
                                         <li>Account will automatically reactivate after the selected period</li>
-                                        <li>You can contact support to reactivate earlier</li>
                                     </ul>
                                     <div class="cool-down-duration">
                                         <h4>Select Deactivation Duration:</h4>
                                         <div class="duration-options">
-                                            <button type="button" class="duration-btn ${this.userData?.deactivationDuration === 14 ? 'active' : ''}" data-days="14">
-                                                14 Days
-                                            </button>
-                                            <button type="button" class="duration-btn ${this.userData?.deactivationDuration === 30 ? 'active' : ''}" data-days="30">
-                                                30 Days
-                                            </button>
+                                            <button type="button" class="btn duration-btn ${this.userData?.deactivationDuration === 14 ? 'active' : ''}" data-days="14">14 Days</button>
+                                            <button type="button" class="btn duration-btn ${this.userData?.deactivationDuration === 30 ? 'active' : ''}" data-days="30">30 Days</button>
                                         </div>
                                         <input type="hidden" id="deactivateDuration" value="14">
                                     </div>
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label class="form-label" for="deactivatePassword">Current Password *</label>
-                                            <input type="password" id="deactivatePassword" class="form-input" 
-                                                placeholder="Enter your current password to confirm" required>
+                                            <input type="password" id="deactivatePassword" class="form-input" placeholder="Enter your current password to confirm" required>
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label" for="deactivateConfirmText">Confirm</label>
-                                            <input type="text" id="deactivateConfirmText" class="form-input" 
-                                                placeholder="DEACTIVATE" required>
+                                            <input type="text" id="deactivateConfirmText" class="form-input" placeholder="DEACTIVATE" required>
                                             <div class="form-help">Type "DEACTIVATE" to confirm *</div>
                                         </div>
                                     </div>
+                                    <div class="confirmation-actions">
+                                        <button type="button" class="btn btn-danger" id="confirmDeactivateBtn">
+                                            <i class="fas fa-ban"></i> Deactivate
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="cancelDeactivateBtn">Cancel</button>
+                                    </div>
                                 </div>
-                                <div class="confirmation-actions">
-                                    <button type="button" class="btn btn-warning" id="confirmDeactivateBtn">
-                                        <i class="fas fa-ban"></i> Deactivate
-                                    </button>
-                                    <button type="button" class="btn btn-secondary" id="cancelDeactivateBtn">
-                                        Cancel
-                                    </button>
+                                <div class="section-divider"></div>
+                                <!-- ===== DELETE ===== -->
+                                <div class="section-option danger-option" id="deleteOption" data-action="delete">
+                                    <div class="section-option-info">
+                                        <div class="section-option-icon" style="background: rgba(220, 38, 38, 0.15);">
+                                            <i class="fas fa-trash-alt danger" style="color: var(--danger);"></i>
+                                        </div>
+                                        <div>
+                                            <div class="section-option-label">Permanently Delete Account</div>
+                                            <div class="section-option-desc">Completely remove your account and all associated data. This cannot be undone.</div>
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-chevron-right action-indicator"></i>
                                 </div>
-                            </div>
-
-                            <div class="danger-confirmation danger-confirmation-danger" id="deleteConfirmation" style="display: none;">
-                                <div class="confirmation-header">
-                                    <span class="material-icons">error</span>
-                                    <h3>Confirm Permanent Account Deletion</h3>
-                                </div>
-                                <div class="confirmation-content">
-                                    <p>This action <strong>cannot be undone</strong>. All your data will be permanently deleted.</p>
+                                <div class="section-option-container danger-confirmation-container" id="deleteConfirmation" style="display: none;">
                                     <div class="form-row">
                                         <div class="form-group">
                                             <label class="form-label" for="deletePassword">Current Password *</label>
-                                            <input type="password" id="deletePassword" class="form-input" 
-                                                placeholder="Enter your current password to confirm" required>
+                                            <input type="password" id="deletePassword" class="form-input" placeholder="Enter your current password to confirm" required>
+                                            <div class="form-help"><p>This action <strong>cannot be undone</strong>. All your data will be permanently deleted.</p></div>
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label" for="deleteConfirmationText">Confirm</label>
-                                            <input type="text" id="deleteConfirmationText" class="form-input" 
-                                                placeholder="DELETE MY ACCOUNT" required>
+                                            <input type="text" id="deleteConfirmationText" class="form-input" placeholder="DELETE MY ACCOUNT" required>
                                             <div class="form-help">Type "DELETE MY ACCOUNT" to confirm *</div>
                                         </div>
                                     </div>
                                     <div class="form-group checkbox-group">
                                         <input type="checkbox" id="deleteAgreement" required>
                                         <label for="deleteAgreement">
-                                            I understand that:
-                                            <ul class="agreement-list">
+                                            <p><strong> I understand that:</strong></p>
+                                            <ul class="section-card-li">
                                                 <li>This action is permanent and cannot be reversed</li>
-                                                <li>All my data will be permanently deleted</li>
                                                 <li>I will lose access to all my files, photos, and notes</li>
                                                 <li>I cannot recover my account after deletion</li>
                                             </ul>
                                         </label>
                                     </div>
+                                    <div class="confirmation-actions">
+                                        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
+                                    </div>
                                 </div>
-                                <div class="confirmation-actions">
-                                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
-                                        <i class="fas fa-trash"></i> Delete
-                                    </button>
-                                    <button type="button" class="btn btn-secondary" id="cancelDeleteBtn">
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
+                            </div><!-- /main danger card -->
 
-                            <div class="settings-card warning">
-                                <div class="warning-header">
-                                    <span class="material-icons">warning</span>
+                            <!-- Security notice -->
+                            <div class="info">
+                                <div class="info-header">
+                                    <i class="fas fa-exclamation-triangle"></i>
                                     <h3>Important Security Notice</h3>
                                 </div>
-                                <div class="warning-content">
+                                <div class="info-content">
                                     <p><strong>Important:</strong> These actions are permanent and cannot be reversed.</p>
                                     <p>Before taking any action, please:</p>
                                     <ul>
@@ -869,9 +798,6 @@ class SettingsModule {
         
         if (section !== 'security') {
             this.resetPasswordForm();
-        }
-        if (section !== 'email') {
-            this.resetEmailForm();
         }
         
         if (section === 'recovery') {
@@ -909,24 +835,6 @@ class SettingsModule {
                 name: fullName,
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
             };
-
-            if (phone && phone.length === 11) {
-                updateData.phone = phone;
-            } else if (phone && phone.length > 0) {
-                this.showError('Phone number must be 11 digits');
-                return;
-            }
-
-            const encodedEmail = this.encodeEmail(this.userData.email);
-            
-            await authModule.masterDB.ref(`users/${encodedEmail}`).update(updateData);
-
-            this.userData = { ...this.userData, ...updateData };
-            localStorage.setItem('currentUser', JSON.stringify(this.userData));
-
-            if (authModule.currentUser) {
-                Object.assign(authModule.currentUser, updateData);
-            }
 
             if (window.sidebarManager) {
                 window.sidebarManager.updateUserProfile();
@@ -983,9 +891,9 @@ class SettingsModule {
             this.showLoading('changePasswordBtn', 'Verifying...');
             this.hideMessages();
 
-            const encodedEmail = this.encodeEmail(this.userData.email);
+            const encodedPhone = this.encodePhone(this.userData.phone);
             
-            const userRef = authModule.masterDB.ref(`users/${encodedEmail}`);
+            const userRef = authModule.masterDB.ref(`users/${encodedPhone}`);
             const userSnapshot = await userRef.once('value');
             
             if (!userSnapshot.exists()) {
@@ -1020,7 +928,7 @@ class SettingsModule {
                 authModule.currentUser.updatedAt = Date.now();
             }
 
-            await this.logPasswordChange(encodedEmail);
+            await this.logPasswordChange(encodedPhone);
 
             this.showSuccess('Password changed successfully!');
             this.resetPasswordForm();
@@ -1037,159 +945,19 @@ class SettingsModule {
         }
     }
 
-    async handleEmailChange(e) {
-        e.preventDefault();
-
-        if (!this.checkAccountStatus()) {
-            return;
-        }
-        
-        const authModule = window.authModule;
-        if (!authModule || !authModule.masterDB) {
-            this.showError('Authentication module not available. Please refresh the page.');
-            return;
-        }
-
-        const newEmail = document.getElementById('newEmail').value.trim().toLowerCase();
-        const confirmNewEmail = document.getElementById('confirmNewEmail').value.trim().toLowerCase();
-        const password = document.getElementById('passwordForEmail').value;
-
-        if (!newEmail || !confirmNewEmail || !password) {
-            this.showError('Please fill in all required fields.');
-            return;
-        }
-
-        if (!this.validateEmail(newEmail)) {
-            this.showError('Please enter a valid email address.');
-            return;
-        }
-
-        if (newEmail !== confirmNewEmail) {
-            this.showError('Email addresses do not match.');
-            return;
-        }
-
-        if (newEmail === this.userData.email) {
-            this.showError('New email must be different from current email.');
-            return;
-        }
-
-        try {
-            this.showLoading('changeEmailBtn', 'Verifying...');
-            this.hideMessages();
-
-            const currentEncodedEmail = this.encodeEmail(this.userData.email);
-            
-            const userRef = authModule.masterDB.ref(`users/${currentEncodedEmail}`);
-            const userSnapshot = await userRef.once('value');
-            
-            if (!userSnapshot.exists()) {
-                throw new Error('User account not found');
-            }
-
-            const userData = userSnapshot.val();
-            
-            if (userData.password !== password) {
-                throw new Error('Current password is incorrect');
-            }
-
-            const newEncodedEmail = this.encodeEmail(newEmail);
-            const existingUserSnapshot = await authModule.masterDB
-                .ref(`users/${newEncodedEmail}`).once('value');
-            
-            if (existingUserSnapshot.exists()) {
-                throw new Error('This email is already registered with another account');
-            }
-
-            this.showLoading('changeEmailBtn', 'Updating email...');
-            
-            const updatedUserData = {
-                ...userData,
-                email: newEmail,
-                emailUpdatedAt: firebase.database.ServerValue.TIMESTAMP,
-                updatedAt: firebase.database.ServerValue.TIMESTAMP
-            };
-
-            await authModule.masterDB.ref(`users/${newEncodedEmail}`).set(updatedUserData);
-            
-            await userRef.remove();
-
-            try {
-                const homeDatabase = authModule.getHomeDatabaseInstance();
-                if (homeDatabase && homeDatabase.db) {
-                    const homeUserRef = homeDatabase.db.ref(`userData/${currentEncodedEmail}`);
-                    const homeUserSnapshot = await homeUserRef.once('value');
-                    
-                    if (homeUserSnapshot.exists()) {
-                        await homeDatabase.db.ref(`userData/${newEncodedEmail}`).set(homeUserSnapshot.val());
-                        await homeUserRef.remove();
-                    }
-                }
-            } catch (dbError) {
-                console.error('Error migrating user data in home database:', dbError);
-            }
-
-            this.userData = updatedUserData;
-            this.encodedEmail = newEncodedEmail;
-            
-            if (authModule.currentUser) {
-                Object.assign(authModule.currentUser, updatedUserData);
-            }
-            
-            localStorage.setItem('currentUser', JSON.stringify(this.userData));
-            localStorage.setItem('lastEmail', newEmail);
-            
-            const homeDbUrl = localStorage.getItem('userHomeDatabaseUrl');
-            if (homeDbUrl) {
-                localStorage.setItem('userHomeDatabaseUrl', homeDbUrl);
-            }
-
-            if (window.sidebarManager) {
-                window.sidebarManager.updateUserProfile();
-            }
-
-            await this.logEmailChange(currentEncodedEmail, newEmail);
-
-            this.showSuccess('Email changed successfully! You will now use the new email for login.');
-            this.resetEmailForm();
-
-            setTimeout(() => {
-                this.showSection('profile');
-                this.populateFormData();
-            }, 1500);
-
-        } catch (error) {
-            console.error('Email change error:', error);
-            this.showError(error.message || 'Failed to change email. Please try again.');
-        } finally {
-            this.hideLoading('changeEmailBtn', 'Change Email Address');
-        }
-    }
-
     populateFormData() {
         if (!this.userData) return;
 
-        const currentEmail = this.userData.email;
+        const currentPhone = this.userData.phone;
         
-        const profileEmailInput = document.getElementById('currentEmail');
-        if (profileEmailInput) {
-            profileEmailInput.value = currentEmail || '';
+        const profilePhoneInput = document.getElementById('currentPhone');
+        if (profilePhoneInput) {
+            profilePhoneInput.value = currentPhone || '';
         }
         
-        const verifyEmailInput = document.getElementById('currentEmailVerify');
-        if (verifyEmailInput) {
-            verifyEmailInput.value = currentEmail || '';
-        }
-    }
-
-    resetEmailForm() {
-        const form = document.getElementById('emailForm');
-        if (form) {
-            form.reset();
-            const currentEmailInput = document.getElementById('currentEmailVerify');
-            if (currentEmailInput && this.userData) {
-                currentEmailInput.value = this.userData.email || '';
-            }
+        const verifyPhoneInput = document.getElementById('currentPhoneVerify');
+        if (verifyPhoneInput) {
+            verifyPhoneInput.value = currentPhone || '';
         }
     }
 
@@ -1225,10 +993,10 @@ class SettingsModule {
                     <span class="rec-code-value">${codeObj.code}</span>
                     ${!codeObj.used ? `
                         <button class="copy-single-btn" data-code="${codeObj.code}">
-                            <span class="material-icons">content_copy</span>
+                            <i class="fas fa-copy"></i>
                         </button>
                     ` : `
-                        <span class="material-icons used-icon">block</span>
+                        <i class="fas fa-ban used-icon"></i>
                     `}
                 </div>
             `).join('');
@@ -1268,7 +1036,7 @@ class SettingsModule {
             const btn = document.querySelector(`.copy-single-btn[data-code="${code}"]`);
             if (btn) {
                 const originalIcon = btn.innerHTML;
-                btn.innerHTML = '<span class="material-icons">check</span>';
+                btn.innerHTML = '<i class="fas fa-check"></i>';
                 setTimeout(() => {
                     btn.innerHTML = originalIcon;
                 }, 1500);
@@ -1301,11 +1069,9 @@ class SettingsModule {
             
             const copyAllBtn = document.getElementById('copyAllCodesBtn');
             if (copyAllBtn) {
-                const originalText = copyAllBtn.innerHTML;
-                copyAllBtn.innerHTML = '<span class="material-icons">check</span> Copied!';
-                setTimeout(() => {
-                    copyAllBtn.innerHTML = originalText;
-                }, 1500);
+                const originalIcon = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => { btn.innerHTML = originalIcon; }, 1500);
             }
             
         } catch (error) {
@@ -1379,8 +1145,8 @@ class SettingsModule {
         try {
             const authModule = window.authModule;
             if (authModule && authModule.isLoggedIn()) {
-                const encodedEmail = this.encodeEmail(this.userData.email);
-                const snapshot = await authModule.masterDB.ref(`users/${encodedEmail}/recoveryCodes`).once('value');
+                const encodedPhone = this.encodePhone(this.userData.phone);
+                const snapshot = await authModule.masterDB.ref(`users/${encodedPhone}/recoveryCodes`).once('value');
                 
                 if (snapshot.exists()) {
                     this.userData.recoveryCodes = snapshot.val();
@@ -1454,8 +1220,8 @@ class SettingsModule {
                 throw new Error('Authentication module not available');
             }
             
-            const encodedEmail = this.encodeEmail(this.userData.email);
-            const userRef = authModule.masterDB.ref(`users/${encodedEmail}`);
+            const encodedPhone = this.encodePhone(this.userData.phone);
+            const userRef = authModule.masterDB.ref(`users/${encodedPhone}`);
             const userSnapshot = await userRef.once('value');
             
             if (!userSnapshot.exists()) {
@@ -1471,7 +1237,7 @@ class SettingsModule {
             const recoveryCodes = authModule.generateRecoveryCodes(5);
             
             this.showLoading('confirmGenerateBtn', 'Generating...');
-            await authModule.masterDB.ref(`users/${encodedEmail}`).update({
+            await authModule.masterDB.ref(`users/${encodedPhone}`).update({
                 recoveryCodes: recoveryCodes,
                 recoveryCodesGenerated: firebase.database.ServerValue.TIMESTAMP,
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
@@ -1640,9 +1406,9 @@ class SettingsModule {
                 throw new Error('Authentication module not available');
             }
             
-            const encodedEmail = this.encodeEmail(this.userData.email);
+            const encodedPhone = this.encodePhone(this.userData.phone);
             
-            const userRef = authModule.masterDB.ref(`users/${encodedEmail}`);
+            const userRef = authModule.masterDB.ref(`users/${encodedPhone}`);
             const userSnapshot = await userRef.once('value');
             
             if (!userSnapshot.exists()) {
@@ -1669,7 +1435,7 @@ class SettingsModule {
             
             await userRef.update(updateData);
             
-            await this.logDeactivation(encodedEmail, durationDays);
+            await this.logDeactivation(encodedPhone, durationDays);
             
             this.userData.status = 'deactivated';
             this.userData.deactivationStart = Date.now();
@@ -1734,9 +1500,9 @@ class SettingsModule {
                 throw new Error('Authentication module not available');
             }
 
-            const encodedEmail = this.encodeEmail(this.userData.email);
+            const encodedPhone = this.encodePhone(this.userData.phone);
             
-            const userRef = authModule.masterDB.ref(`users/${encodedEmail}`);
+            const userRef = authModule.masterDB.ref(`users/${encodedPhone}`);
             const userSnapshot = await userRef.once('value');
             
             if (!userSnapshot.exists()) {
@@ -1751,14 +1517,14 @@ class SettingsModule {
 
             this.showLoading('confirmDeleteBtn', 'Deleting Account...');
             
-            await this.logDeletion(encodedEmail);
+            await this.logDeletion(encodedPhone);
             
             await userRef.remove();
             
             const homeDb = authModule.getHomeDatabaseInstance();
             if (homeDb && homeDb.db) {
                 try {
-                    await homeDb.db.ref(`userData/${encodedEmail}`).remove();
+                    await homeDb.db.ref(`userData/${encodedPhone}`).remove();
                 } catch (error) {
                     console.error('Error deleting from home database:', error);
                 }
@@ -1783,7 +1549,7 @@ class SettingsModule {
     }
 
     // ========== 11. LOGGING ==========
-    async logPasswordChange(encodedEmail) {
+    async logPasswordChange(encodedPhone) {
         try {
             const authModule = window.authModule;
             if (!authModule || !authModule.masterDB) return;
@@ -1795,7 +1561,7 @@ class SettingsModule {
                 device: this.getDeviceInfo()
             };
 
-            await authModule.masterDB.ref(`userActivity/${encodedEmail}/password_changes`)
+            await authModule.masterDB.ref(`userActivity/${encodedPhone}/password_changes`)
                 .push(activityData);
                 
         } catch (error) {
@@ -1803,35 +1569,7 @@ class SettingsModule {
         }
     }
 
-    async logEmailChange(oldEncodedEmail, newEmail) {
-        try {
-            const authModule = window.authModule;
-            if (!authModule || !authModule.masterDB) return;
-
-            const activityData = {
-                type: 'email_changed',
-                oldEmail: this.userData.email,
-                newEmail: newEmail,
-                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                userAgent: navigator.userAgent.substring(0, 100)
-            };
-
-            await authModule.masterDB.ref(`userActivity/${oldEncodedEmail}/email_changes`)
-                .push(activityData);
-                
-            const newEncodedEmail = this.encodeEmail(newEmail);
-            await authModule.masterDB.ref(`userActivity/${newEncodedEmail}/email_changes`)
-                .push({
-                    ...activityData,
-                    migratedFrom: oldEncodedEmail
-                });
-                
-        } catch (error) {
-            console.error('Error logging email change:', error);
-        }
-    }
-
-    async logDeactivation(encodedEmail, durationDays) {
+    async logDeactivation(encodedPhone, durationDays) {
         try {
             const authModule = window.authModule;
             if (!authModule || !authModule.masterDB) return;
@@ -1845,13 +1583,13 @@ class SettingsModule {
                 ip: await this.getClientIP()
             };
             
-            await authModule.masterDB.ref(`userActivity/${encodedEmail}/account_actions`)
+            await authModule.masterDB.ref(`userActivity/${encodedPhone}/account_actions`)
                 .push(logData);
             
             await authModule.masterDB.ref('adminLogs/accountDeactivations')
                 .push({
-                    email: this.userData.email,
-                    encodedEmail: encodedEmail,
+                    phone: this.userData.phone,
+                    encodedPhone: encodedPhone,
                     durationDays: durationDays,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
                     deactivatedUntil: Date.now() + (durationDays * 24 * 60 * 60 * 1000)
@@ -1862,7 +1600,7 @@ class SettingsModule {
         }
     }
 
-    async logDeletion(encodedEmail) {
+    async logDeletion(encodedPhone) {
         try {
             const authModule = window.authModule;
             if (!authModule || !authModule.masterDB) return;
@@ -1874,13 +1612,13 @@ class SettingsModule {
                 ip: await this.getClientIP()
             };
 
-            await authModule.masterDB.ref(`userActivity/${encodedEmail}/account_actions`)
+            await authModule.masterDB.ref(`userActivity/${encodedPhone}/account_actions`)
                 .push(logData);
 
             await authModule.masterDB.ref('adminLogs/accountDeletions')
                 .push({
-                    email: this.userData.email,
-                    encodedEmail: encodedEmail,
+                    phone: this.userData.phone,
+                    encodedPhone: encodedPhone,
                     timestamp: firebase.database.ServerValue.TIMESTAMP
                 });
 
@@ -1890,42 +1628,6 @@ class SettingsModule {
     }
 
     // ========== 12. UTILITY METHODS ==========
-    validateEmail(email) {
-        if (window.authModule && typeof window.authModule.validateEmail === 'function') {
-            return window.authModule.validateEmail(email);
-        }
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-
-    formatPhoneNumber(phone) {
-        if (!phone) return '';
-        const digits = phone.replace(/\D/g, '');
-        if (digits.length === 11) {
-            return `${digits.substring(0, 3)} ${digits.substring(3, 6)}-${digits.substring(6)}`;
-        }
-        return phone;
-    }
-
-    getStatusIcon(status) {
-        switch(status) {
-            case 'active': return 'verified';
-            case 'pending': return 'schedule';
-            case 'suspended': return 'block';
-            case 'deactivated': return 'pause_circle';
-            default: return 'help';
-        }
-    }
-
-    getStatusText(status) {
-        switch(status) {
-            case 'active': return 'Active';
-            case 'pending': return 'Pending Approval';
-            case 'suspended': return 'Suspended';
-            case 'deactivated': return 'Deactivated';
-            default: return status;
-        }
-    }
-
     extractDbNameFromUrl(url) {
         if (!url) return 'Default';
         try {
@@ -1936,9 +1638,10 @@ class SettingsModule {
         }
     }
 
-    encodeEmail(email) {
-        if (!email) return '';
-        return email.replace(/\./g, ',').replace(/@/g, '-at-');
+    encodePhone(phone) {
+        if (!phone) return '';
+        const cleaned = phone.replace(/[^\d+]/g, '');
+        return cleaned.replace(/\./g, ',').replace(/@/g, '-at-');
     }
 
     // ========== 13. UI HELPERS ==========
@@ -2010,8 +1713,9 @@ class SettingsModule {
     // ========== 14. EVENT LISTENERS ==========
     setupSettingsEventListeners() {
         console.log('Setting up enhanced settings event listeners...');
-        
+
         try {
+            // ---------- Navigation ----------
             document.addEventListener('click', (e) => {
                 const navItem = e.target.closest('.settings-nav-item');
                 if (navItem) {
@@ -2020,46 +1724,21 @@ class SettingsModule {
                 }
             });
 
+            // ---------- Profile Form ----------
             const profileForm = document.getElementById('profileForm');
             if (profileForm) {
                 profileForm.removeEventListener('submit', this.handleProfileSave);
                 profileForm.addEventListener('submit', (e) => this.handleProfileSave(e));
             }
 
-            const emailForm = document.getElementById('emailForm');
-            if (emailForm) {
-                emailForm.removeEventListener('submit', this.handleEmailChange);
-                emailForm.addEventListener('submit', (e) => this.handleEmailChange(e));
-            }
-
+            // ---------- Password Form ----------
             const passwordForm = document.getElementById('passwordForm');
             if (passwordForm) {
                 passwordForm.removeEventListener('submit', this.handlePasswordChange);
                 passwordForm.addEventListener('submit', (e) => this.handlePasswordChange(e));
             }
 
-            const logoutOption = document.getElementById('logoutOption');
-            const confirmLogoutBtn = document.getElementById('confirmLogoutBtn');
-            const cancelLogoutBtn = document.getElementById('cancelLogoutBtn');
-            
-            if (logoutOption) {
-                logoutOption.removeEventListener('click', this.boundShowLogoutConfirmation);
-                this.boundShowLogoutConfirmation = () => this.showLogoutConfirmation();
-                logoutOption.addEventListener('click', this.boundShowLogoutConfirmation);
-            }
-            
-            if (confirmLogoutBtn) {
-                confirmLogoutBtn.removeEventListener('click', this.boundConfirmLogout);
-                this.boundConfirmLogout = () => this.confirmLogout();
-                confirmLogoutBtn.addEventListener('click', this.boundConfirmLogout);
-            }
-            
-            if (cancelLogoutBtn) {
-                cancelLogoutBtn.removeEventListener('click', this.boundHideLogoutConfirmation);
-                this.boundHideLogoutConfirmation = () => this.hideLogoutConfirmation();
-                cancelLogoutBtn.addEventListener('click', this.boundHideLogoutConfirmation);
-            }
-
+            // ---------- Password Visibility Toggles ----------
             document.addEventListener('click', (e) => {
                 const toggleBtn = e.target.closest('.toggle-password-btn');
                 if (toggleBtn) {
@@ -2070,40 +1749,166 @@ class SettingsModule {
                 }
             });
 
-            const viewCodesBtn = document.getElementById('viewCodesBtn');
-            const generateCodesBtn = document.getElementById('generateCodesBtn');
-            const downloadCodesBtn = document.getElementById('downloadCodesBtn');
-            const copyAllCodesBtn = document.getElementById('copyAllCodesBtn');
-            const hideCodesBtn = document.getElementById('hideCodesBtn');
-            const confirmGenerateBtn = document.getElementById('confirmGenerateBtn');
-            const cancelGenerateBtn = document.getElementById('cancelGenerateBtn');
+            // ---------- Recovery Codes ----------
+            // View codes row
+            const viewCodesRow = document.getElementById('viewCodesRow');
+            if (viewCodesRow) {
+                viewCodesRow.removeEventListener('click', this.viewCodesHandler);
+                this.viewCodesHandler = (e) => {
+                    // Hide generate confirmation if open
+                    document.getElementById('generateCodesConfirmation').style.display = 'none';
+                    // Toggle codes display
+                    const codesDisplay = document.getElementById('recoveryCodesDisplay');
+                    if (codesDisplay.style.display === 'none') {
+                        this.viewRecoveryCodes();   // this will populate and show
+                    } else {
+                        codesDisplay.style.display = 'none';
+                    }
+                };
+                viewCodesRow.addEventListener('click', this.viewCodesHandler);
+            }
 
-            if (viewCodesBtn) viewCodesBtn.addEventListener('click', () => this.viewRecoveryCodes());
-            if (generateCodesBtn) generateCodesBtn.addEventListener('click', () => this.showGenerateConfirmation());
-            if (downloadCodesBtn) downloadCodesBtn.addEventListener('click', () => this.downloadRecoveryCodes());
-            if (copyAllCodesBtn) copyAllCodesBtn.addEventListener('click', () => this.copyAllRecoveryCodes());
-            if (hideCodesBtn) hideCodesBtn.addEventListener('click', () => this.hideRecoveryCodes());
-            if (confirmGenerateBtn) confirmGenerateBtn.addEventListener('click', () => this.confirmGenerateCodes());
-            if (cancelGenerateBtn) cancelGenerateBtn.addEventListener('click', () => this.hideGenerateConfirmation());
+            // Generate codes row
+            const generateCodesRow = document.getElementById('generateCodesRow');
+            if (generateCodesRow) {
+                generateCodesRow.removeEventListener('click', this.generateCodesHandler);
+                this.generateCodesHandler = (e) => {
+                    // Hide codes display if open
+                    document.getElementById('recoveryCodesDisplay').style.display = 'none';
+                    // Toggle generate confirmation
+                    const genConf = document.getElementById('generateCodesConfirmation');
+                    if (genConf.style.display === 'none') {
+                        this.showGenerateConfirmation();
+                    } else {
+                        genConf.style.display = 'none';
+                    }
+                };
+                generateCodesRow.addEventListener('click', this.generateCodesHandler);
+            }
 
-            const deactivateOption = document.getElementById('deactivateOption');
-            const deleteOption = document.getElementById('deleteOption');
-            const confirmDeactivateBtn = document.getElementById('confirmDeactivateBtn');
-            const cancelDeactivateBtn = document.getElementById('cancelDeactivateBtn');
-            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-            const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+            // Download codes row
+            const downloadCodesRow = document.getElementById('downloadCodesRow');
+            if (downloadCodesRow) {
+                downloadCodesRow.removeEventListener('click', this.downloadCodesHandler);
+                this.downloadCodesHandler = () => {
+                    this.downloadRecoveryCodes();
+                };
+                downloadCodesRow.addEventListener('click', this.downloadCodesHandler);
+            }
 
-            if (deactivateOption) deactivateOption.addEventListener('click', () => this.showDeactivateConfirmation());
-            if (deleteOption) deleteOption.addEventListener('click', () => this.showDeleteConfirmation());
-            if (confirmDeactivateBtn) confirmDeactivateBtn.addEventListener('click', () => this.deactivateAccount());
-            if (cancelDeactivateBtn) cancelDeactivateBtn.addEventListener('click', () => this.hideDeactivateConfirmation());
-            if (confirmDeleteBtn) confirmDeleteBtn.addEventListener('click', () => this.deleteAccount());
-            if (cancelDeleteBtn) cancelDeleteBtn.addEventListener('click', () => this.hideDeleteConfirmation());
+            // Cancel generate button (already exists, but we keep it)
+            const cancelGenerate = document.getElementById('cancelGenerateBtn');
+            if (cancelGenerate) {
+                cancelGenerate.removeEventListener('click', this.cancelGenerateHandler);
+                this.cancelGenerateHandler = () => {
+                    this.hideGenerateConfirmation();
+                };
+                cancelGenerate.addEventListener('click', this.cancelGenerateHandler);
+            }
 
+            // Confirm generate (already exists)
+            const confirmGenerate = document.getElementById('confirmGenerateBtn');
+            if (confirmGenerate) {
+                confirmGenerate.removeEventListener('click', this.confirmGenerateHandler);
+                this.confirmGenerateHandler = () => this.confirmGenerateCodes();
+                confirmGenerate.addEventListener('click', this.confirmGenerateHandler);
+            }
+
+            // Hide codes button (already exists)
+            const hideCodes = document.getElementById('hideCodesBtn');
+            if (hideCodes) {
+                hideCodes.removeEventListener('click', this.hideCodesHandler);
+                this.hideCodesHandler = () => {
+                    document.getElementById('recoveryCodesDisplay').style.display = 'none';
+                };
+                hideCodes.addEventListener('click', this.hideCodesHandler);
+            }
+
+            // Copy all codes (already exists)
+            const copyAll = document.getElementById('copyAllCodesBtn');
+            if (copyAll) {
+                copyAll.removeEventListener('click', this.copyAllHandler);
+                this.copyAllHandler = () => this.copyAllRecoveryCodes();
+                copyAll.addEventListener('click', this.copyAllHandler);
+            }
+            // ---------- Danger Zone – Inline Confirmation Toggling ----------
+            // First, get all danger option rows
+            const dangerOptions = document.querySelectorAll('.danger-option');
+            dangerOptions.forEach(option => {
+                // Remove any previous listener to avoid duplicates
+                option.removeEventListener('click', this.dangerToggleHandler);
+                // Create a bound handler
+                this.dangerToggleHandler = (e) => {
+                    const action = option.dataset.action; // 'logout', 'deactivate', 'delete'
+                    // Hide all confirmation containers
+                    document.querySelectorAll('.danger-confirmation-container').forEach(container => {
+                        container.style.display = 'none';
+                    });
+                    // Show the one for this action
+                    const targetContainer = document.getElementById(`${action}Confirmation`);
+                    if (targetContainer) {
+                        targetContainer.style.display = 'block';
+                        targetContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                };
+                option.addEventListener('click', this.dangerToggleHandler);
+            });
+
+            // Cancel buttons for each confirmation
+            const cancelLogout = document.getElementById('cancelLogoutBtn');
+            if (cancelLogout) {
+                cancelLogout.removeEventListener('click', this.cancelLogoutHandler);
+                this.cancelLogoutHandler = () => {
+                    document.getElementById('logoutConfirmation').style.display = 'none';
+                };
+                cancelLogout.addEventListener('click', this.cancelLogoutHandler);
+            }
+
+            const cancelDeactivate = document.getElementById('cancelDeactivateBtn');
+            if (cancelDeactivate) {
+                cancelDeactivate.removeEventListener('click', this.cancelDeactivateHandler);
+                this.cancelDeactivateHandler = () => {
+                    document.getElementById('deactivateConfirmation').style.display = 'none';
+                };
+                cancelDeactivate.addEventListener('click', this.cancelDeactivateHandler);
+            }
+
+            const cancelDelete = document.getElementById('cancelDeleteBtn');
+            if (cancelDelete) {
+                cancelDelete.removeEventListener('click', this.cancelDeleteHandler);
+                this.cancelDeleteHandler = () => {
+                    document.getElementById('deleteConfirmation').style.display = 'none';
+                };
+                cancelDelete.addEventListener('click', this.cancelDeleteHandler);
+            }
+
+            // Confirm buttons (they call the existing methods)
+            const confirmLogout = document.getElementById('confirmLogoutBtn');
+            if (confirmLogout) {
+                confirmLogout.removeEventListener('click', this.confirmLogoutHandler);
+                this.confirmLogoutHandler = () => this.confirmLogout();
+                confirmLogout.addEventListener('click', this.confirmLogoutHandler);
+            }
+
+            const confirmDeactivate = document.getElementById('confirmDeactivateBtn');
+            if (confirmDeactivate) {
+                confirmDeactivate.removeEventListener('click', this.confirmDeactivateHandler);
+                this.confirmDeactivateHandler = () => this.deactivateAccount();
+                confirmDeactivate.addEventListener('click', this.confirmDeactivateHandler);
+            }
+
+            const confirmDelete = document.getElementById('confirmDeleteBtn');
+            if (confirmDelete) {
+                confirmDelete.removeEventListener('click', this.confirmDeleteHandler);
+                this.confirmDeleteHandler = () => this.deleteAccount();
+                confirmDelete.addEventListener('click', this.confirmDeleteHandler);
+            }
+
+            // ---------- Deactivation Duration Buttons ----------
             const durationBtns = document.querySelectorAll('.duration-btn');
             durationBtns.forEach(btn => {
                 btn.removeEventListener('click', this.handleDurationSelect);
-                btn.addEventListener('click', (e) => {
+                this.handleDurationSelect = (e) => {
                     e.preventDefault();
                     const days = btn.getAttribute('data-days');
                     if (days) {
@@ -2117,7 +1922,20 @@ class SettingsModule {
                         }
                         console.log(`Deactivation duration set to ${days} days`);
                     }
-                });
+                };
+                btn.addEventListener('click', this.handleDurationSelect);
+            });
+
+            // ---------- Global Logout via sidebar (if any) ----------
+            // (already handled by the click listener on #logoutOption, but we keep the old document-level click)
+            document.addEventListener('click', (e) => {
+                const logoutOption = e.target.closest('#logoutOption');
+                if (logoutOption) {
+                    // The new inline toggle will handle showing the confirmation.
+                    // We don't need to duplicate the action.
+                    // Just prevent default if it's a link.
+                    e.preventDefault();
+                }
             });
 
             console.log('Enhanced settings event listeners setup complete');
@@ -2129,14 +1947,20 @@ class SettingsModule {
     togglePasswordVisibility(inputId, button) {
         const input = document.getElementById(inputId);
         if (!input) return;
-        
-        const icon = button.querySelector('.material-icons');
+
+        const icon = button.querySelector('.fas');
         if (input.type === 'password') {
             input.type = 'text';
-            if (icon) icon.textContent = 'visibility_off';
+            if (icon) {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            }
         } else {
             input.type = 'password';
-            if (icon) icon.textContent = 'visibility';
+            if (icon) {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
         }
     }
 

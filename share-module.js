@@ -3,7 +3,7 @@
 class ShareModule {
     constructor() {
         this.currentUser = null;
-        this.encodedEmail = null;
+        this.encodedPhone = null;
         this.mainDB = null;
         this.shareDB = null;
         this.shareApp = null;
@@ -16,72 +16,61 @@ class ShareModule {
         this.selectedPhotoIds = new Set();
         this.availablePhotos = [];
 
-        // Upload properties (matching photos module)
-        this.selectedFiles = null;
-        this.uploadInProgress = false;
-        this.uploadLimits = {
-            maxFilesPerUpload: 5,
-            maxFileSizeMB: 20,
-            maxTotalPhotos: 100   // soft limit for memory
-        };
-        this.compressionConfig = {
-            maxSizeMB: 1,
-            targetSizeKB: 475,
-            maxWidth: 1600,
-            quality: 0.8,
-            minQuality: 0.5
-        };
-
         this.pendingPhotoForShare = null;
 
-        this.editMode = false;           // Track if we're editing an existing link
-        this.currentEditLinkId = null;   // ID of link being edited
+        this.editMode = false;
+        this.currentEditLinkId = null;
         this.containerRendered = false;
 
+        // Links shared with the current user
+        this.sharedWithMeLinks = {};
     }
 
     // ========== INITIALIZATION ==========
-async initShareModule() {
-    try {
-        const authModule = window.authModule;
-        if (authModule && authModule.isAuthenticated) {
-            this.currentUser = authModule.currentUser;
-            this.encodedEmail = this.encodeEmail(this.currentUser.email);
-            this.mainDB = authModule.masterDB;
-            await this.getShareDatabaseUrl();
-            await this.getSiteUrl();
-            await this.connectToShareDatabase();
-        } else {
-            this.loadUserDataFromStorage();
-            if (window.authModule && window.authModule.masterDB) {
-                this.mainDB = window.authModule.masterDB;
+    async initShareModule() {
+        try {
+            const authModule = window.authModule;
+            if (authModule && authModule.isAuthenticated) {
+                this.currentUser = authModule.currentUser;
+                this.encodedPhone = this.encodePhone(this.currentUser.phone);
+                this.mainDB = authModule.masterDB;
                 await this.getShareDatabaseUrl();
                 await this.getSiteUrl();
                 await this.connectToShareDatabase();
+            } else {
+                this.loadUserDataFromStorage();
+                if (window.authModule && window.authModule.masterDB) {
+                    this.mainDB = window.authModule.masterDB;
+                    await this.getShareDatabaseUrl();
+                    await this.getSiteUrl();
+                    await this.connectToShareDatabase();
+                }
             }
+
+            await this.loadUserLinks();
+            await this.loadSharedWithMeLinks();
+
+            setInterval(() => this.deleteExpiredLinks(), 60 * 60 * 1000);
+
+            if (this.currentSection === 'links') {
+                this.renderLinksList();
+            }
+            if (this.currentSection === 'shared-with-me') {
+                this.renderSharedWithMeLinks();
+            }
+
+            if (this.pendingPhotoForShare) {
+                this.applyPhotoToShare(this.pendingPhotoForShare);
+                this.pendingPhotoForShare = null;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error initializing share module:', error);
+            this.showError('Could not initialise sharing features. Please refresh the page.');
+            return false;
         }
-
-        await this.loadUserLinks();
-        setInterval(() => this.deleteExpiredLinks(), 60 * 60 * 1000);
-
-        // 🔁 If links section is active after loading, ensure it's refreshed
-        if (this.currentSection === 'links') {
-            this.renderLinksList();
-        }
-
-        // Apply any pending photo that was set before module was fully initialised
-        if (this.pendingPhotoForShare) {
-            this.applyPhotoToShare(this.pendingPhotoForShare);
-            this.pendingPhotoForShare = null;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error initializing share module:', error);
-        this.showError('Could not initialise sharing features. Please refresh the page.');
-        return false;
     }
-}
 
     // STEP 1: Read share database URL from main database
     async getShareDatabaseUrl() {
@@ -91,18 +80,14 @@ async initShareModule() {
         }
         
         try {
-            // Read from shareURL/url path in main database
             const snapshot = await this.mainDB.ref('shareURL/url').once('value');
             
             if (snapshot.exists()) {
                 this.shareDatabaseUrl = snapshot.val();
                 console.log('Share database URL found:', this.shareDatabaseUrl);
-                
-                // Cache for future use
                 localStorage.setItem('shareDatabaseUrl', this.shareDatabaseUrl);
                 return this.shareDatabaseUrl;
             } else {
-                // Try backup location
                 const backupSnapshot = await this.mainDB.ref('shareURL/value').once('value');
                 if (backupSnapshot.exists()) {
                     this.shareDatabaseUrl = backupSnapshot.val();
@@ -116,7 +101,6 @@ async initShareModule() {
             }
         } catch (error) {
             console.error('Error reading share database URL:', error);
-            // Try to use cached URL
             const cachedUrl = localStorage.getItem('shareDatabaseUrl');
             if (cachedUrl) {
                 console.log('Using cached share database URL:', cachedUrl);
@@ -135,18 +119,14 @@ async initShareModule() {
         }
         
         try {
-            // Read from siteURL/url path in main database
             const snapshot = await this.mainDB.ref('siteURL/url').once('value');
             
             if (snapshot.exists()) {
                 this.siteUrl = snapshot.val();
                 console.log('Site URL found:', this.siteUrl);
-                
-                // Cache for future use
                 localStorage.setItem('siteUrl', this.siteUrl);
                 return this.siteUrl;
             } else {
-                // Try backup location
                 const backupSnapshot = await this.mainDB.ref('siteURL/value').once('value');
                 if (backupSnapshot.exists()) {
                     this.siteUrl = backupSnapshot.val();
@@ -155,7 +135,6 @@ async initShareModule() {
                     return this.siteUrl;
                 }
                 
-                // Fallback to default if nothing found in database
                 console.warn('No site URL found in main database, using default');
                 this.siteUrl = "https://xdrives.github.io/share/content.html";
                 localStorage.setItem('siteUrl', this.siteUrl);
@@ -163,14 +142,12 @@ async initShareModule() {
             }
         } catch (error) {
             console.error('Error reading site URL:', error);
-            // Try to use cached URL
             const cachedUrl = localStorage.getItem('siteUrl');
             if (cachedUrl) {
                 console.log('Using cached site URL:', cachedUrl);
                 this.siteUrl = cachedUrl;
                 return cachedUrl;
             }
-            // Final fallback
             this.siteUrl = "https://xdrives.github.io/web/content.html";
             return this.siteUrl;
         }
@@ -179,69 +156,65 @@ async initShareModule() {
     // Get current site URL (with fallback)
     getSiteUrlSync() {
         if (this.siteUrl) return this.siteUrl;
-        
-        // Try to get from localStorage
         const cachedUrl = localStorage.getItem('siteUrl');
         if (cachedUrl) {
             this.siteUrl = cachedUrl;
             return cachedUrl;
         }
-        
-        // Default fallback
         return "https://xdrives.github.io/web/content.html";
     }
 
     // STEP 3: Connect to share database
-async connectToShareDatabase() {
-    if (!this.shareDatabaseUrl) {
-        console.error('No share database URL available');
-        this.showError('Share database URL not configured. Please contact support.');
-        return false;
-    }
-
-    try {
-        let existingApp = firebase.apps.find(app => {
-            return app.options && app.options.databaseURL === this.shareDatabaseUrl;
-        });
-
-        if (existingApp) {
-            this.shareApp = existingApp;
-            this.shareDB = existingApp.database();
-            console.log('Using existing share database connection');
-        } else {
-            const appName = `shareDB_${Date.now()}`;
-            this.shareApp = firebase.initializeApp(
-                { databaseURL: this.shareDatabaseUrl },
-                appName
-            );
-            this.shareDB = this.shareApp.database();
-            console.log('Connected to share database:', this.shareDatabaseUrl);
-        }
-
-        const connectedRef = this.shareDB.ref('.info/connected');
-        const isConnected = await connectedRef.once('value');
-        if (isConnected.val() === true) {
-            console.log('Share database connection confirmed');
-            return true;
-        } else {
-            console.warn('Share database connection may be unavailable');
-            this.showError('Cannot reach share database. Some features may be limited.');
+    async connectToShareDatabase() {
+        if (!this.shareDatabaseUrl) {
+            console.error('No share database URL available');
+            this.showError('Share database URL not configured. Please contact support.');
             return false;
         }
-    } catch (error) {
-        console.error('Error connecting to share database:', error);
-        this.showError('Failed to connect to share database. Please check your internet connection.');
-        return false;
+
+        try {
+            let existingApp = firebase.apps.find(app => {
+                return app.options && app.options.databaseURL === this.shareDatabaseUrl;
+            });
+
+            if (existingApp) {
+                this.shareApp = existingApp;
+                this.shareDB = existingApp.database();
+                console.log('Using existing share database connection');
+            } else {
+                const appName = `shareDB_${Date.now()}`;
+                this.shareApp = firebase.initializeApp(
+                    { databaseURL: this.shareDatabaseUrl },
+                    appName
+                );
+                this.shareDB = this.shareApp.database();
+                console.log('Connected to share database:', this.shareDatabaseUrl);
+            }
+
+            const connectedRef = this.shareDB.ref('.info/connected');
+            const isConnected = await connectedRef.once('value');
+            if (isConnected.val() === true) {
+                console.log('Share database connection confirmed');
+                return true;
+            } else {
+                console.warn('Share database connection may be unavailable');
+                this.showError('Cannot reach share database. Some features may be limited.');
+                return false;
+            }
+        } catch (error) {
+            console.error('Error connecting to share database:', error);
+            this.showError('Failed to connect to share database. Please check your internet connection.');
+            return false;
+        }
     }
-}
 
     loadUserDataFromStorage() {
         try {
             const userDataStr = localStorage.getItem('currentUser');
             if (userDataStr) {
                 this.currentUser = JSON.parse(userDataStr);
-                if (this.currentUser?.email) {
-                    this.encodedEmail = this.encodeEmail(this.currentUser.email);
+                if (this.currentUser?.phone) {
+                    this.encodedPhone = this.encodePhone(this.currentUser.phone);
                 }
             }
         } catch (error) {
@@ -250,14 +223,16 @@ async connectToShareDatabase() {
     }
 
     // ========== ENCODING ==========
-    encodeEmail(email) {
-        if (!email) return '';
-        return email.replace(/\./g, ',').replace(/@/g, '-at-');
-    }
+encodePhone(phone) {
+    if (!phone) return '';
+    const cleaned = phone.replace(/\D/g, '');   // digits only
+    // (optional) keep the existing replacements if you have dots or @ in emails
+    return cleaned.replace(/\./g, ',').replace(/@/g, '-at-');
+}
 
-    decodeEmail(encodedEmail) {
-        if (!encodedEmail) return '';
-        return encodedEmail.replace(/-at-/g, '@').replace(/,/g, '.');
+    decodePhone(encodedPhone) {
+        if (!encodedPhone) return '';
+        return encodedPhone.replace(/-at-/g, '@').replace(/,/g, '.');
     }
 
     // ========== HASHING & ID GENERATION ==========
@@ -273,55 +248,83 @@ async connectToShareDatabase() {
         return 'share_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
 
-    // ========== DATABASE OPERATIONS - ALL USE SHARE DATABASE ==========
+    // ========== DATABASE OPERATIONS ==========
     
-    // ========== UPDATED loadUserLinks ==========
-async loadUserLinks() {
-    if (!this.encodedEmail || !this.shareDB) {
-        console.warn('Cannot load links: No share database connection');
-        return;
-    }
+    async loadUserLinks() {
+        if (!this.encodedPhone || !this.shareDB) {
+            console.warn('Cannot load links: No share database connection');
+            return;
+        }
 
-    try {
-        const userLinksSnapshot = await this.shareDB.ref(`userLinks/${this.encodedEmail}`).once('value');
-        const userLinkIds = userLinksSnapshot.val() || {};
+        try {
+            const userLinksSnapshot = await this.shareDB.ref(`userLinks/${this.encodedPhone}`).once('value');
+            const userLinkIds = userLinksSnapshot.val() || {};
 
-        this.secureLinks = {};
-        for (const linkId of Object.keys(userLinkIds)) {
-            const linkSnapshot = await this.shareDB.ref(`shareLinks/${linkId}`).once('value');
-            const linkData = linkSnapshot.val();
-            if (linkData) {
-                this.secureLinks[linkId] = linkData;
+            this.secureLinks = {};
+            for (const linkId of Object.keys(userLinkIds)) {
+                const linkSnapshot = await this.shareDB.ref(`shareLinks/${linkId}`).once('value');
+                const linkData = linkSnapshot.val();
+                if (linkData) {
+                    this.secureLinks[linkId] = linkData;
+                }
             }
-        }
 
-        console.log(`Loaded ${Object.keys(this.secureLinks).length} links from share database`);
-        await this.deleteExpiredLinks();
+            console.log(`Loaded ${Object.keys(this.secureLinks).length} links from share database`);
+            await this.deleteExpiredLinks();
 
-        // 🔁 Refresh the links list if the "Links" section is currently visible
-        if (this.currentSection === 'links') {
-            this.renderLinksList();
+            if (this.currentSection === 'links') {
+                this.renderLinksList();
+            }
+        } catch (error) {
+            console.error('Error loading user links from share database:', error);
+            this.secureLinks = {};
+            this.showError('Failed to load shared links. Please check your connection.');
         }
-    } catch (error) {
-        console.error('Error loading user links from share database:', error);
-        this.secureLinks = {};
-        this.showError('Failed to load shared links. Please check your connection.');
     }
-}
+
+    async loadSharedWithMeLinks() {
+        if (!this.encodedPhone || !this.shareDB) {
+            console.warn('Cannot load shared-with-me links: No share database connection');
+            return;
+        }
+
+        try {
+            const sharedRef = this.shareDB.ref(`sharedWithMe/${this.encodedPhone}`);
+            const snapshot = await sharedRef.once('value');
+            const sharedLinkIds = snapshot.val() || {};
+
+            this.sharedWithMeLinks = {};
+            for (const linkId of Object.keys(sharedLinkIds)) {
+                const linkSnapshot = await this.shareDB.ref(`shareLinks/${linkId}`).once('value');
+                const linkData = linkSnapshot.val();
+                if (linkData) {
+                    this.sharedWithMeLinks[linkId] = linkData;
+                } else {
+                    await sharedRef.child(linkId).remove();
+                }
+            }
+
+            console.log(`Loaded ${Object.keys(this.sharedWithMeLinks).length} shared-with-me links`);
+
+            if (this.currentSection === 'shared-with-me') {
+                this.renderSharedWithMeLinks();
+            }
+        } catch (error) {
+            console.error('Error loading shared-with-me links:', error);
+            this.sharedWithMeLinks = {};
+        }
+    }
+
     async saveUserLinks() {
-        if (!this.encodedEmail || !this.shareDB) {
+        if (!this.encodedPhone || !this.shareDB) {
             console.error('Cannot save: No share database connection');
             return false;
         }
         
         try {
-            // Save to SHARE database
             for (const [linkId, linkData] of Object.entries(this.secureLinks)) {
-                // Save the full link data under shareLinks/{linkId}
                 await this.shareDB.ref(`shareLinks/${linkId}`).set(linkData);
-                
-                // Maintain user index for quick lookup
-                await this.shareDB.ref(`userLinks/${this.encodedEmail}/${linkId}`).set(true);
+                await this.shareDB.ref(`userLinks/${this.encodedPhone}/${linkId}`).set(true);
             }
             
             console.log(`Saved ${Object.keys(this.secureLinks).length} links to share database`);
@@ -332,16 +335,43 @@ async loadUserLinks() {
         }
     }
 
+    async updateSharedWithMeIndex(linkId, oldAllowedPhones = [], newAllowedPhones = []) {
+        if (!this.shareDB) return;
+
+        const oldSet = new Set(oldAllowedPhones);
+        const newSet = new Set(newAllowedPhones);
+
+        const toAdd = newAllowedPhones.filter(phone => !oldSet.has(phone) && phone !== this.currentUser.phone);
+        const toRemove = oldAllowedPhones.filter(phone => !newSet.has(phone) && phone !== this.currentUser.phone);
+
+        for (const phone of toAdd) {
+            const encoded = this.encodePhone(phone);
+            await this.shareDB.ref(`sharedWithMe/${encoded}/${linkId}`).set(true);
+        }
+
+        for (const phone of toRemove) {
+            const encoded = this.encodePhone(phone);
+            await this.shareDB.ref(`sharedWithMe/${encoded}/${linkId}`).remove();
+        }
+    }
+
     async deleteLink(linkId) {
-        if (!this.shareDB || !this.encodedEmail) return false;
+        if (!this.shareDB || !this.encodedPhone) return false;
         
         try {
-            // Delete from share database
+            const linkData = this.secureLinks[linkId] || this.sharedWithMeLinks[linkId];
+            if (linkData && linkData.allowedPhones && linkData.allowedPhones.length) {
+                for (const phone of linkData.allowedPhones) {
+                    const encoded = this.encodePhone(phone);
+                    await this.shareDB.ref(`sharedWithMe/${encoded}/${linkId}`).remove();
+                }
+            }
+
             await this.shareDB.ref(`shareLinks/${linkId}`).remove();
-            await this.shareDB.ref(`userLinks/${this.encodedEmail}/${linkId}`).remove();
+            await this.shareDB.ref(`userLinks/${this.encodedPhone}/${linkId}`).remove();
             
-            // Remove from local object
             delete this.secureLinks[linkId];
+            delete this.sharedWithMeLinks[linkId];
             
             console.log(`Link ${linkId} deleted from share database`);
             return true;
@@ -352,7 +382,7 @@ async loadUserLinks() {
     }
 
     async updateLinkStatus(linkId, newStatus) {
-        if (!this.shareDB || !this.encodedEmail) return false;
+        if (!this.shareDB || !this.encodedPhone) return false;
         
         try {
             const linkData = this.secureLinks[linkId];
@@ -361,11 +391,9 @@ async loadUserLinks() {
                 return false;
             }
             
-            // Update status
             linkData.status = newStatus;
             this.secureLinks[linkId] = linkData;
             
-            // Save to share database
             await this.shareDB.ref(`shareLinks/${linkId}`).update({ status: newStatus });
             
             console.log(`Link ${linkId} status updated to ${newStatus} in share database`);
@@ -391,9 +419,8 @@ async loadUserLinks() {
         return success;
     }
 
-    // Delete expired links automatically
     async deleteExpiredLinks() {
-        if (!this.shareDB || !this.encodedEmail) return;
+        if (!this.shareDB || !this.encodedPhone) return;
         
         const now = new Date();
         let deletedCount = 0;
@@ -402,10 +429,25 @@ async loadUserLinks() {
             if (linkData.expiration && new Date(linkData.expiration) < now) {
                 console.log(`Deleting expired link: ${linkData.title} (${linkId})`);
                 
+                if (linkData.allowedPhones) {
+                    for (const phone of linkData.allowedPhones) {
+                        const encoded = this.encodePhone(phone);
+                        await this.shareDB.ref(`sharedWithMe/${encoded}/${linkId}`).remove();
+                    }
+                }
+
                 await this.shareDB.ref(`shareLinks/${linkId}`).remove();
-                await this.shareDB.ref(`userLinks/${this.encodedEmail}/${linkId}`).remove();
+                await this.shareDB.ref(`userLinks/${this.encodedPhone}/${linkId}`).remove();
                 
                 delete this.secureLinks[linkId];
+                deletedCount++;
+            }
+        }
+
+        for (const [linkId, linkData] of Object.entries(this.sharedWithMeLinks)) {
+            if (linkData.expiration && new Date(linkData.expiration) < now) {
+                await this.shareDB.ref(`sharedWithMe/${this.encodedPhone}/${linkId}`).remove();
+                delete this.sharedWithMeLinks[linkId];
                 deletedCount++;
             }
         }
@@ -413,13 +455,14 @@ async loadUserLinks() {
         if (deletedCount > 0) {
             console.log(`Deleted ${deletedCount} expired links from share database`);
             this.renderLinksList();
+            this.renderSharedWithMeLinks();
         }
         
         return deletedCount;
     }
 
-    // ========== UNIFIED CREATE LINK (TEXT + PHOTOS) ==========
-    async createShareLink(title, textContent, photoIds, protectionType, password, expiration, viewOnce = false, viewOnceSeconds = 10, status = 'active') {
+    // ========== UNIFIED CREATE LINK ==========
+    async createShareLink(title, textContent, photoIds, protectionType, password, expiration, viewOnce = false, viewOnceSeconds = 10, status = 'active', watermarkText = null, allowedPhones = []) {
         const linkId = this.generateId();
         const now = new Date().toISOString();
         const photos = [];
@@ -446,16 +489,27 @@ async loadUserLinks() {
             textContent: textContent || '', photos: photos, photoCount: photos.length,
             passwordHash: passwordHash, hasPassword: hasPassword,
             createdAt: now, expiration: expiration || null, views: 0,
-            ownerEmail: this.currentUser.email, ownerId: this.encodedEmail,
+            ownerPhone: this.currentUser.phone,
+            ownerId: this.encodedPhone,
             viewOnce: viewOnce, viewOnceSeconds: viewOnce ? viewOnceSeconds : null,
-            isDestroyed: false, status: status
+            isDestroyed: false, status: status, watermarkText: watermarkText,
+            allowedPhones: allowedPhones,
         };
         this.secureLinks[linkId] = linkData;
         await this.saveUserLinks();
+
+        if (allowedPhones && allowedPhones.length) {
+            for (const phone of allowedPhones) {
+                if (phone !== this.currentUser.phone) {
+                    const encoded = this.encodePhone(phone);
+                    await this.shareDB.ref(`sharedWithMe/${encoded}/${linkId}`).set(true);
+                }
+            }
+        }
+
         const secureUrl = `${this.getSiteUrlSync()}?id=${linkId}`;
         return { linkId, secureUrl, linkData };
     }
-
 
     // ========== STATISTICS ==========
     getStats() {
@@ -506,7 +560,6 @@ async loadUserLinks() {
         };
     }
 
-    // Check if link is accessible (add to content.html helper)
     isLinkAccessible(linkData) {
         if (!linkData) return false;
         if (linkData.status === 'pending') return false;
@@ -515,51 +568,47 @@ async loadUserLinks() {
         return true;
     }
 
-    // ========== PHOTO SELECTION (no limit) ==========
+    // ========== PHOTO SELECTION ==========
     togglePhotoSelection(photoId) {
         if (this.selectedPhotoIds.has(photoId)) this.selectedPhotoIds.delete(photoId);
         else this.selectedPhotoIds.add(photoId);
         this.updatePhotoUI();
     }
 
-updatePhotoUI() {
-    const selectedCountEl = document.getElementById('selectedPhotoCount');
-    if (selectedCountEl) selectedCountEl.textContent = `${this.selectedPhotoIds.size} photo(s) selected`;
-    
-    this.renderPhotoSelectionGrid();   // render the grid every time
-    
-    // Always show the library button, not only when empty
-    const emptyActionDiv = document.getElementById('emptyPhotosAction');
-    if (emptyActionDiv) emptyActionDiv.style.display = 'block';
-    
-    const createBtn = document.getElementById('createLinkSubmitBtn');
-    if (createBtn) createBtn.disabled = false;
-}
-
+    updatePhotoUI() {
+        const selectedCountEl = document.getElementById('selectedPhotoCount');
+        if (selectedCountEl) selectedCountEl.textContent = `${this.selectedPhotoIds.size} photo(s) selected`;
+        
+        this.renderPhotoSelectionGrid();
+        
+        const emptyActionDiv = document.getElementById('emptyPhotosAction');
+        if (emptyActionDiv) emptyActionDiv.style.display = 'block';
+        
+        const createBtn = document.getElementById('createLinkSubmitBtn');
+        if (createBtn) createBtn.disabled = false;
+    }
 
     // ========== UI METHODS ==========
-async render(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    if (!this.containerRendered) {
-        // First time rendering - build the full HTML
-        container.innerHTML = this.getShareHTML();
-        this.setupEventListeners();
-        this.showSection(this.currentSection);
-        await this.initShareModule();
-        this.containerRendered = true;
-    } else {
-        // Already rendered - just update dynamic content
-        this.renderLinksList();
-        this.updatePhotoUI();
-        // Apply any pending photo that arrived before module was ready
-        if (this.pendingPhotoForShare) {
-            this.applyPhotoToShare(this.pendingPhotoForShare);
-            this.pendingPhotoForShare = null;
+    async render(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (!this.containerRendered) {
+            container.innerHTML = this.getShareHTML();
+            this.setupEventListeners();
+            this.showSection(this.currentSection);
+            await this.initShareModule();
+            this.containerRendered = true;
+        } else {
+            this.renderLinksList();
+            this.renderSharedWithMeLinks();
+            this.updatePhotoUI();
+            if (this.pendingPhotoForShare) {
+                this.applyPhotoToShare(this.pendingPhotoForShare);
+                this.pendingPhotoForShare = null;
+            }
         }
     }
-}
 
     getShareHTML() {
         const stats = this.getStats();
@@ -567,7 +616,7 @@ async render(containerId) {
             <div class="share-container">
                 <div class="module-card">
                     <div class="module-icon" style="color: var(--primary);">
-                        <span class="material-icons">share</span>
+                        <i class="fas fa-share-alt"></i>
                     </div>
                     <div class="module-info">
                         <div class="module-title">Secure Share</div>
@@ -577,284 +626,693 @@ async render(containerId) {
 
                 <div class="share-grid">
                     <div class="share-sidebar">
-                        <div class="share-nav-item active" data-section="create"><span class="material-icons">add_link</span><span>Create</span></div>
-                        <div class="share-nav-item" data-section="links"><span class="material-icons">link</span><span>My Links</span></div>
-                        <div class="share-nav-item" data-section="about"><span class="material-icons">info</span><span>About</span></div>
+                        <div class="share-nav-item active" data-section="create">
+                            <i class="fas fa-plus-circle"></i><span>Create</span>
+                        </div>
+                        <div class="share-nav-item" data-section="links">
+                            <i class="fas fa-link"></i><span>My Links</span>
+                        </div>
+                        <div class="share-nav-item" data-section="shared-with-me">
+                            <i class="fas fa-users"></i><span>Share With Me</span>
+                        </div>
+                        <div class="share-nav-item" data-section="about">
+                            <i class="fas fa-info-circle"></i><span>About</span>
+                        </div>
                     </div>
 
                     <div class="share-content">
-                        <div id="shareSuccess" class="share-message success" style="display: none;"><span class="material-icons">check_circle</span><span id="successMessage"></span></div>
-                        <div id="shareError" class="share-message error" style="display: none;"><span class="material-icons">error</span><span id="errorMessage"></span></div>
-
+                        <div id="shareSuccess" class="share-message success" style="display: none;">
+                            <i class="fas fa-check-circle"></i><span id="successMessage"></span>
+                        </div>
+                        <div id="shareError" class="share-message error" style="display: none;">
+                            <i class="fas fa-exclamation-circle"></i><span id="errorMessage"></span>
+                        </div>
+                        
                         <!-- CREATE SECTION -->
-                        <div class="share-section active" id="create-section">
-                            <div class="section-header"><h2>Create Share Link</h2></div>
+                        <div class="share-section" id="create-section">
                             <div class="share-card">
                                 <form id="createLinkForm">
-                                    <div class="form-group">
-                                        <label class="form-label">Link Title *</label>
-                                        <input type="text" id="linkTitle" class="form-input" placeholder="e.g., Vacation Memories, Secret Notes" required maxlength="24">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">Text Content (optional)</label>
-                                        <textarea id="linkContent" class="form-textarea" rows="4" placeholder="Write anything you want to share..."></textarea>
-                                    </div>
-
-                                    <!--  -->
-                                    <div class="form-group">
-                                        <div class="form-label form-label-border" style="margin-top: 4px;">
-                                            <span>Photos to Share</span>
-                                            <span id="selectedPhotoCount" class="form-label-right">0</span>
-                                        </div>
-                                        <div id="photoSelectionGrid" class="photo-selection-grid"></div>
-                                        <div id="emptyPhotosAction" style="margin-top: 12px;">
-                                            <button type="button" id="browsePhotosBtn" class="btn btn-primary">
-                                                <i class="fas fa-images"></i> Open Photo Library
-                                            </button>
-                                            <div class="form-help">Select photos from your library – they will appear above.</div>
-                                        </div>                                       
-                                    </div>
-
-                                    <!-- Security Options (unchanged) -->
-                                    <div class="form-group">
-                                        <label class="form-label">Security Options</label>
-                                        <div class="security-option">
-                                            <div class="security-option-header">
-                                                <div class="security-option-title">Password Protection</div>
-                                                <label class="toggle-switch"><input type="checkbox" id="passwordProtectionToggle"><span class="toggle-slider"></span></label>
+                                    <div class="section-card">
+                                        <div class="section-card-header">
+                                            <div class="section-card-title">
+                                                <i class="fas fa-plus-circle"></i>
+                                                <span>Create Share Link</span>
                                             </div>
-                                            <div class="security-option-description">Require password to access shared content</div>
-                                            <div class="form-group" id="passwordFieldGroup" style="display: none; margin-top: 8px;">
-                                                <label class="form-label">Set Access Password</label>
-                                                <div class="password-input-group">
-                                                    <input type="password" class="form-input" id="linkPassword" placeholder="Min. 4 characters" minlength="4">
-                                                    <button type="button" class="toggle-password-btn" data-target="linkPassword"><span class="material-icons">visibility</span></button>
+                                            <span class="section-card-badge">
+                                                Share text and photos together with password protection
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="section-card">
+                                        <div class="section-card-header">
+                                            <div class="section-card-title">
+                                                <i class="fas fa-file-alt"></i>
+                                                <span>Content</span>
+                                            </div>
+                                            <span class="section-card-badge">
+                                                <i class="fas fa-pen"></i>
+                                                Title &amp; Text
+                                            </span>
+                                        </div>
+                                        <div class="section-card-content">
+                                            <div class="form-group">
+                                                <label class="form-label">Link Title *</label>
+                                                <input type="text" id="linkTitle" class="form-input" 
+                                                    placeholder="e.g., Vacation Memories, Secret Notes" 
+                                                    required maxlength="24">
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label">Text Content (optional)</label>
+                                                <textarea id="linkContent" class="form-textarea" rows="4" 
+                                                        placeholder="Write anything you want to share..."></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Photos Section -->
+                                    <div class="section-card">
+                                        <div class="section-card-header">
+                                            <div class="section-card-title">
+                                                <i class="fas fa-images"></i>
+                                                <span>Photos to Share</span>
+                                            </div>
+                                            <span class="section-card-badge">
+                                                <span id="selectedPhotoCount" class="badge-count">0</span>
+                                            </span>
+                                        </div>
+                                        <div class="section-card-content">
+                                            <div id="photoSelectionGrid" class="photo-selection-grid"></div>
+                                            <div id="emptyPhotosAction" style="padding: 0 14px 14px 14px; margin-top: 12px;">
+                                                <button type="button" id="browsePhotosBtn" class="btn btn-primary">
+                                                    <i class="fas fa-images"></i> Open Photo Library
+                                                </button>
+                                                <div class="form-help">Select photos from your library – they will appear above.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Security & Privacy Section -->
+                                    <div class="section-card">
+                                        <div class="section-card-header">
+                                            <div class="section-card-title">
+                                                <i class="fas fa-shield-alt"></i>
+                                                <span>Security &amp; Privacy</span>
+                                            </div>
+                                            <span class="section-card-badge">
+                                                <i class="fas fa-lock"></i>
+                                                End-to-End Encrypted
+                                            </span>
+                                        </div>     
+                                        <!-- Password Protection -->
+                                        <div class="section-option">
+                                            <div class="section-option-info">
+                                                <div class="section-option-icon">
+                                                    <i class="fas fa-lock"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="section-option-label">Password Protection</div>
+                                                    <div class="section-option-desc">Require a password to view this content</div>
                                                 </div>
                                             </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="passwordProtectionToggle">
+                                                <span class="toggle-slider"></span>
+                                            </label>
                                         </div>
-                                        <div class="security-option" style="margin-top: 8px;">
-                                            <div class="security-option-header">
-                                                <div class="security-option-title">View Once</div>
-                                                <label class="toggle-switch"><input type="checkbox" id="viewOnceToggle"><span class="toggle-slider"></span></label>
+                                        <div class="section-option-container" id="passwordFieldGroup" style="display: none;">
+                                            <div class="password-input-group">
+                                                <input type="password" class="form-input" id="linkPassword"
+                                                    placeholder="Min. 4 characters" minlength="4">
+                                                <button type="button" class="toggle-password-btn" data-target="linkPassword">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
                                             </div>
-                                            <div class="security-option-description">Content self‑destructs after being viewed</div>
-                                            <div id="viewOnceSecondsContainer" style="display: none; margin-top: 12px;">
-                                                <label class="form-label">View Duration: <span id="secondsValueDisplay">3</span> seconds</label>
-                                                <input type="range" id="viewOnceSecondsSlider" min="1" max="10" step="1" value="3" class="form-range">
+                                        </div>
+                                        <!-- View Once -->
+                                        <div class="section-divider"></div>
+                                        <div class="section-option">
+                                            <div class="section-option-info">
+                                                <div class="section-option-icon">
+                                                    <i class="fas fa-eye-slash"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="section-option-label">View Once</div>
+                                                    <div class="section-option-desc">Content self-destructs after being viewed</div>
+                                                </div>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="viewOnceToggle">
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="section-option-container" id="viewOnceSecondsContainer" style="display: none;">
+                                            <div class="view-once-slider-row">
+                                                <span class="view-once-slider-label">View duration:</span>
+                                                <span class="view-once-slider-value" id="secondsValueDisplay">3</span>
+                                                <span class="view-once-slider-unit">seconds</span>
+                                            </div>
+                                            <input type="range" id="viewOnceSecondsSlider" min="1" max="10" step="1" value="3"
+                                                class="form-range">
+                                        </div>
+                                        <!-- Watermark -->
+                                        <div class="section-divider"></div>
+                                        <div class="section-option">
+                                            <div class="section-option-info">
+                                                <div class="section-option-icon">
+                                                    <i class="fas fa-copyright"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="section-option-label">Watermark Photos</div>
+                                                    <div class="section-option-desc">Overlay custom text on all shared images</div>
+                                                </div>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="watermarkToggle">
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="section-option-container" id="watermarkTextContainer" style="display: none;">
+                                            <input type="text" id="watermarkText" class="form-input"
+                                                placeholder="e.g., Confidential, © 2026, Private"
+                                                value="Confidential" maxlength="30">
+                                            <div class="form-help" style="margin-top: 4px;">Max 30 characters</div>
+                                        </div>
+                                        <!-- Share With Specific Users -->
+                                        <div class="section-divider"></div>
+                                        <div class="section-option">
+                                            <div class="section-option-info">
+                                                <div class="section-option-icon">
+                                                    <i class="fas fa-user-plus"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="section-option-label">Share With Specific Users</div>
+                                                    <div class="section-option-desc">Only these phone numbers can view the content</div>
+                                                </div>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="shareWithToggle">
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div class="section-option-container" id="shareWithContainer" style="display: none;">
+                                            <input type="text" id="shareWithInput" class="form-input"
+                                                placeholder="Enter phone numbers, comma separated"
+                                                value="">
+                                            <div id="shareWithStatus" class="phone-validator-status"></div>
+                                            <div class="form-help" style="margin-top: 4px;">
+                                                Separate multiple phone numbers with commas. Users must be signed in to xDrive.
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div class="form-group">
-                                        <label class="form-label">Expiration</label>
-                                        <input type="datetime-local" id="expirationDate" class="form-input">
-                                        <div class="form-help">Leave empty for no expiration (max 7 days from now)</div>
+                                    <!-- Expiration Section -->
+                                    <div class="section-card">
+                                        <div class="section-card-header">
+                                            <div class="section-card-title">
+                                                <i class="fas fa-calendar-alt"></i>
+                                                <span>Expiration</span>
+                                            </div>
+                                            <span class="section-card-badge">
+                                                <i class="fas fa-clock"></i>
+                                                Max 7 days
+                                            </span>
+                                        </div>
+                                        <div class="expiration-input-row">
+                                            <div class="expiration-input-wrapper">
+                                                <input type="datetime-local" id="expirationDate" class="form-input expiration-input">
+                                                <span class="expiration-input-icon">
+                                                    <i class="fas fa-calendar-day"></i>
+                                                </span>
+                                            </div>
+                                            <div class="form-help">
+                                                Leave empty for no expiration &nbsp;·&nbsp; max 7 days from now
+                                            </div>
+                                        </div>
                                     </div>
-
+                                    <!-- Form Actions -->
                                     <div class="form-actions">
-                                        <button type="submit" class="btn btn-primary" id="createLinkSubmitBtn"><i class="fas fa-link"></i> Create Share Link</button>
-                                        <button type="button" class="btn btn-secondary" id="clearFormBtn"><i class="fas fa-times"></i> Clear</button>
+                                        <button type="submit" class="btn btn-primary" id="createLinkSubmitBtn">
+                                            <i class="fas fa-link"></i> Create Share Link
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="clearFormBtn">
+                                            <i class="fas fa-times"></i> Clear
+                                        </button>
                                     </div>
                                 </form>
                             </div>
-
+                            <!-- Result Section -->
                             <div id="linkResultSection" class="link-result-section" style="display: none;">
-                                <div class="result-header"><span class="material-icons">link</span><h3>Share Link Created</h3><button class="close-result-btn" id="closeResultBtn"><span class="material-icons">close</span></button></div>
-                                <div class="result-body"><p>Share this link with others:</p><div class="link-url-display" id="resultLinkUrl"></div><div id="resultWarning" class="warning-text" style="display: none;"><strong>Important:</strong> Share the password separately from the link.</div><div id="resultViewOnceWarning" class="warning-text" style="display: none;"><strong>View Once Mode Active:</strong> Content will self‑destruct after <span id="resultSecondsValue">3</span> seconds!</div><div id="resultPhotoInfo" class="result-photo-info" style="display: none;"></div><div class="info-text">The link contains only a unique ID – no personal information is exposed.</div></div>
+                                <div class="result-header">
+                                    <i class="fas fa-link"></i>
+                                    <h3>Share Link Created</h3>
+                                    <button class="close-result-btn" id="closeResultBtn">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div class="result-body">
+                                    <p>Share this link with others:</p>
+                                    <div class="link-url-display" id="resultLinkUrl"></div>
+                                    <div id="resultWarning" class="warning-text" style="display: none;">
+                                        <strong>Important:</strong> Share the password separately from the link.
+                                    </div>
+                                    <div id="resultViewOnceWarning" class="warning-text" style="display: none;">
+                                        <strong>View Once Mode Active:</strong> Content will self‑destruct after
+                                        <span id="resultSecondsValue">3</span> seconds!
+                                    </div>
+                                    <div id="resultPhotoInfo" class="result-photo-info" style="display: none;"></div>
+                                    <div class="info-text">The link contains only a unique ID – no personal information is exposed.</div>
+                                </div>
                                 <div class="result-actions">
-                                    <button class="btn btn-success" id="copyResultLinkBtn">Copy Link</button>
-                                    <button class="btn btn-success" id="shareResultLinkBtn">Share Link</button>
-                                    <button class="btn btn-secondary" id="closeResultActionBtn">Close</button>
+                                    <button class="btn btn-success" id="copyResultLinkBtn"><i class="fas fa-copy"></i> Copy Link</button>
+                                    <button class="btn btn-success" id="shareResultLinkBtn"><i class="fas fa-share-alt"></i> Share Link</button>
+                                    <button class="btn btn-secondary" id="closeResultActionBtn"><i class="fas fa-times"></i> Close</button>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- MY LINKS SECTION (unchanged) -->
-                        <div class="share-section" id="links-section"><div class="section-header"><h2>My Share Links</h2><p>Manage and track your shared links</p></div><div id="linksListContainer"></div></div>
-                        <div class="share-section" id="about-section"><div class="section-header"><h2>About Secure Share</h2><p>Learn about security and features</p></div></div>
+                        <!-- MY LINKS SECTION -->
+                        <div class="share-section" id="links-section">
+                            <div class="section-card">
+                                <div class="section-card-header">
+                                    <div class="section-card-title">
+                                        <i class="fas fa-link"></i>
+                                        <span>My Share Links</span>
+                                    </div>
+                                    <span class="section-card-badge">
+                                        <i class="fas fa-shield-alt"></i>
+                                        Manage and track your shared links
+                                    </span>
+                                </div>
+                            </div>
+                            <div id="linksListContainer"></div>
+                        </div>
+                        <!-- SHARED WITH ME SECTION -->
+                        <div class="share-section" id="shared-with-me-section">
+                            <div class="section-card">
+                                <div class="section-card-header">
+                                    <div class="section-card-title">
+                                        <i class="fas fa-users"></i>
+                                        <span>Shared With Me</span>
+                                    </div>
+                                    <span class="section-card-badge">
+                                        <i class="fas fa-share-alt"></i>
+                                        Links that others have shared with you
+                                    </span>
+                                </div>
+                            </div>
+                            <div id="sharedWithMeContainer"></div>
+                        </div>
+                        <!-- ABOUT SECTION -->
+                        <div class="share-section" id="about-section">
+                            <div class="section-card">
+                                <div class="section-card-header">
+                                    <div class="section-card-title">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>About Secure Share</span>
+                                    </div>
+                                    <span class="section-card-badge">
+                                        <i class="fas fa-shield-alt"></i>
+                                        Learn about security and features
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
     }
 
-
-    // ========== RENDER LINKS LIST (updated to show both text & photos) ==========
-    renderLinksList() {
+    // ========== RENDER LINKS LIST ==========
+    async renderLinksList() {
         const container = document.getElementById('linksListContainer');
-        if (!container) return;
+        if (!container) {
+            console.warn('linksListContainer not found');
+            return;
+        }
+
         const links = Object.values(this.secureLinks);
         if (links.length === 0) {
-            container.innerHTML = `<div class="empty-state"><span class="material-icons empty-state-icon">link_off</span><p>No share links created yet</p><button class="btn btn-primary" id="goToCreateBtn">Create Your First Link</button></div>`;
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-unlink empty-state-icon"></i>
+                    <p>No share links created yet</p>
+                    <button class="btn btn-primary" id="goToCreateBtn">Create Your First Link</button>
+                </div>
+            `;
             document.getElementById('goToCreateBtn')?.addEventListener('click', () => this.showSection('create'));
             return;
         }
-        
+
         let html = '';
         const now = new Date();
+
         for (const link of links) {
             const isExpired = link.expiration && new Date(link.expiration) < now;
             const isDestroyed = link.isDestroyed === true;
             const isPending = link.status === 'pending';
             const isActive = link.status === 'active' || !link.status;
             const secureUrl = `${this.getSiteUrlSync()}?id=${link.id}`;
-            
+
+            let statusBadgeClass = 'badge-active';
+            let statusLabel = 'Active';
+            if (isDestroyed) { statusBadgeClass = 'badge-destroyed'; statusLabel = 'Destroyed'; }
+            else if (isExpired) { statusBadgeClass = 'badge-expired'; statusLabel = 'Expired'; }
+            else if (isPending) { statusBadgeClass = 'badge-pending'; statusLabel = 'Pending'; }
+
+            let typeIcon = 'fa-file-alt';
+            let typeLabel = 'Mixed';
+            if (link.type === 'text') { typeIcon = 'fa-file-alt'; typeLabel = 'Text'; }
+            else if (link.type === 'photos') { typeIcon = 'fa-images'; typeLabel = 'Photos'; }
+            else if (link.type === 'mixed') { typeIcon = 'fa-layer-group'; typeLabel = 'Text + Photos'; }
+
             let expirationDisplay = '';
             if (link.expiration) {
                 const expDate = new Date(link.expiration);
-                expirationDisplay = `<span>Expires: ${expDate.toLocaleDateString()} at ${expDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
+                expirationDisplay = `Expires: ${expDate.toLocaleDateString()} at ${expDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
             }
-            
-            // Determine type badge text and icon
-            let typeIcon = 'description';
-            let typeLabel = 'Mixed';
-            if (link.type === 'text') { typeIcon = 'description'; typeLabel = 'Text'; }
-            else if (link.type === 'photos') { typeIcon = 'photo_library'; typeLabel = 'Photos'; }
-            else if (link.type === 'mixed') { typeIcon = 'article'; typeLabel = 'Text + Photos'; }
-            
+
             html += `
-                <div class="share-link-item ${isExpired || isDestroyed || isPending ? 'expired' : ''}" data-link-id="${link.id}">
-                    <div class="share-link-top-row">
-                        <div class="share-title-section">
-                            <div class="share-title">${this.escapeHtml(link.title)}</div>
-                            <span class="share-type-badge"><span class="material-icons">${typeIcon}</span> ${typeLabel}</span>
+                <div class="link-card ${isExpired || isDestroyed || isPending ? 'inactive' : ''}" data-link-id="${link.id}">
+                    <div class="link-card-header">
+                        <div class="link-title-section">
+                            <span class="link-title-icon"><i class="fas fa-share-alt"></i></span>
+                            <span class="link-title">${this.escapeHtml(link.title)}</span>
                         </div>
-                        <div class="share-actions-top-right">
+                        <div class="link-header-actions">
                             <button class="btn-icon edit-link-btn" data-id="${link.id}" ${isExpired || isDestroyed || isPending ? 'disabled' : ''} title="Edit Link">
-                                <span class="material-icons">edit</span>
+                                <i class="fas fa-edit"></i>
                             </button>
                             <button class="btn-icon share-link-btn" data-url="${secureUrl}" data-title="${this.escapeHtml(link.title)}" ${isPending ? 'disabled' : ''} title="Share Link">
-                                <span class="material-icons">share</span>
+                                <i class="fas fa-share-alt"></i>
                             </button>
                             <button class="btn-icon copy-link-btn" data-url="${secureUrl}" ${isPending ? 'disabled' : ''} title="Copy Link">
-                                <span class="material-icons">content_copy</span>
+                                <i class="fas fa-copy"></i>
                             </button>
                             <button class="btn-icon toggle-status-btn" data-id="${link.id}" data-status="${link.status || 'active'}" title="${isPending ? 'Activate' : 'Pause'}">
-                                <span class="material-icons">${isPending ? 'play_arrow' : 'pause'}</span>
+                                <i class="fas ${isPending ? 'fa-play' : 'fa-pause'}"></i>
                             </button>
                             <button class="btn-icon delete-link-btn" data-id="${link.id}" title="Delete Link">
-                                <span class="material-icons">delete</span>
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </div>
-                    <div class="share-password-section" id="passwordSection_${link.id}" style="display: none;">
-                        ${link.hasPassword ? `<div class="password-remove"><label class="remove-password-label"><input type="checkbox" id="removePassword_${link.id}"> <span>Remove password protection</span></label></div>` : ''}
-                        <div class="password-wrapper"><div class="password-input-group"><input type="text" class="form-input password-input" id="password_${link.id}" placeholder="${link.hasPassword ? 'New password (min 4 chars)' : 'Set password (min 4 chars)'}"><div class="password-buttons"><button class="btn-sm btn-success save-password-btn" data-id="${link.id}"><span class="material-icons">check</span></button><button class="btn-sm btn-secondary cancel-password-btn" data-id="${link.id}"><span class="material-icons">close</span></button></div></div></div>
-                    </div>
-                    <div class="share-delete-section" id="deleteSection_${link.id}" style="display: none;">
-                        <div class="delete-confirm"><div class="warning-text">This action cannot be undone. The link will be permanently removed.</div><div class="delete-buttons"><button class="btn btn-secondary cancel-delete-btn" data-id="${link.id}">Cancel</button><button class="btn btn-danger confirm-delete-btn" data-id="${link.id}">Delete Permanently</button></div></div>
-                    </div>
-                    <div class="share-details-section">
-                        <div class="share-details">
-                            <div class="share-detail"><span class="material-icons">calendar_today</span><span>Created ${new Date(link.createdAt).toLocaleDateString()}</span></div>
-                            ${link.expiration && !isExpired ? `<div class="share-detail"><span class="material-icons">event_busy</span>${expirationDisplay}</div>` : ''}
-                            ${link.expiration && isExpired ? `<div class="share-detail"><span class="material-icons">event_busy</span><span>Expired: ${new Date(link.expiration).toLocaleDateString()}</span></div>` : ''}
-                            <div class="share-detail"><span class="material-icons">visibility</span><span>${link.views || 0} views</span></div>
-                            ${link.photos && link.photos.length ? `<div class="share-detail"><span class="material-icons">image</span><span>${link.photos.length} photo(s)</span></div>` : ''}
-                            ${link.textContent ? `<div class="share-detail"><span class="material-icons">description</span><span>Text included</span></div>` : ''}
+                    <div class="link-card-body">
+                        <div class="link-details-grid">
+                            <div class="link-detail-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>Created ${new Date(link.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            ${link.expiration ? `
+                                <div class="link-detail-item ${isExpired ? 'expired' : ''}">
+                                    <i class="fas fa-calendar-times"></i>
+                                    <span>${expirationDisplay}</span>
+                                </div>
+                            ` : ''}
+                            <div class="link-detail-item">
+                                <i class="fas fa-eye"></i>
+                                <span>${link.views || 0} views</span>
+                            </div>
+                            ${link.photos && link.photos.length ? `
+                                <div class="link-detail-item">
+                                    <i class="fas fa-image"></i>
+                                    <span>${link.photos.length} photo(s)</span>
+                                </div>
+                            ` : ''}
+                            ${link.textContent ? `
+                                <div class="link-detail-item">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span>Text included</span>
+                                </div>
+                            ` : ''}
                         </div>
-                        <div class="link-badges">
-                            ${link.hasPassword ? '<span class="link-badge badge-password"><span class="material-icons">lock</span> Protected</span>' : ''}
-                            ${link.viewOnce ? '<span class="link-badge badge-viewonce"><span class="material-icons">visibility_off</span> View Once</span>' : ''}
-                            ${isDestroyed ? '<span class="link-badge badge-destroyed"><span class="material-icons">delete_forever</span> Destroyed</span>' : ''}
-                            ${isExpired ? '<span class="link-badge badge-expired"><span class="material-icons">schedule</span> Expired</span>' : ''}
-                            ${isPending ? '<span class="link-badge badge-pending"><span class="material-icons">pause_circle</span> Pending</span>' : ''}
-                            ${isActive && !isExpired && !isDestroyed && !isPending ? '<span class="link-badge badge-active"><span class="material-icons">check_circle</span> Active</span>' : ''}
+                        <div class="link-feature-badges">
+                            ${link.hasPassword ? '<span class="link-badge badge-password"><i class="fas fa-lock"></i> Protected</span>' : ''}
+                            ${link.viewOnce ? '<span class="link-badge badge-viewonce"><i class="fas fa-eye-slash"></i> View Once</span>' : ''}
+                            ${isDestroyed ? '<span class="link-badge badge-destroyed"><i class="fas fa-trash-alt"></i> Destroyed</span>' : ''}
+                            ${isExpired ? '<span class="link-badge badge-expired"><i class="fas fa-clock"></i> Expired</span>' : ''}
+                            ${isPending ? '<span class="link-badge badge-pending"><i class="fas fa-pause-circle"></i> Pending</span>' : ''}
+                            ${isActive && !isExpired && !isDestroyed && !isPending ? '<span class="link-badge badge-active"><i class="fas fa-check-circle"></i> Active</span>' : ''}
+                        </div>
+                        ${await this.renderAccessRequests(link.id)}
+                        <div class="link-delete-section" id="deleteSection_${link.id}" style="display: none;">
+                            <div class="delete-confirm">
+                                <div class="warning-text">This action cannot be undone. The link will be permanently removed.</div>
+                                <div class="delete-buttons">
+                                    <button class="btn btn-secondary cancel-delete-btn" data-id="${link.id}">Cancel</button>
+                                    <button class="btn btn-danger confirm-delete-btn" data-id="${link.id}">Delete Permanently</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
+
         container.innerHTML = html;
-        // Re-attach event listeners (same as original, unchanged)
         this.attachLinkEventListeners(container);
     }
 
-attachLinkEventListeners(container) {
-    // Copy link buttons
-    container.querySelectorAll('.copy-link-btn').forEach(btn => {
-        btn.removeEventListener('click', this.copyLinkHandler);
-        this.copyLinkHandler = async (e) => {
-            e.stopPropagation();
-            const url = btn.getAttribute('data-url');
-            await this.copyToClipboard(url);
-            this.showSuccess('Link copied!');
-        };
-        btn.addEventListener('click', this.copyLinkHandler);
-    });
+    // ========== RENDER SHARED WITH ME LINKS ==========
+    async renderSharedWithMeLinks() {
+        const container = document.getElementById('sharedWithMeContainer');
+        if (!container) {
+            console.warn('sharedWithMeContainer not found');
+            return;
+        }
 
-    // Edit link buttons
-    container.querySelectorAll('.edit-link-btn').forEach(btn => {
-        btn.removeEventListener('click', this.editLinkHandler);
-        this.editLinkHandler = async (e) => {
-            e.stopPropagation();
-            const id = btn.getAttribute('data-id');
-            await this.editLink(id);
-        };
-        btn.addEventListener('click', this.editLinkHandler);
-    });
-    
-    // Share link buttons
-    container.querySelectorAll('.share-link-btn').forEach(btn => {
-        btn.removeEventListener('click', this.shareLinkHandler);
-        this.shareLinkHandler = async (e) => {
-            e.stopPropagation();
-            const url = btn.getAttribute('data-url');
-            const title = btn.getAttribute('data-title') || 'Shared Content';
-            await this.shareLink(url, title);
-        };
-        btn.addEventListener('click', this.shareLinkHandler);
-    });
-    
-    // Toggle status buttons
-    container.querySelectorAll('.toggle-status-btn').forEach(btn => {
-        btn.removeEventListener('click', this.toggleStatusHandler);
-        this.toggleStatusHandler = async (e) => {
-            e.stopPropagation();
-            const id = btn.getAttribute('data-id');
-            await this.toggleLinkStatus(id);
-            this.renderLinksList();
-        };
-        btn.addEventListener('click', this.toggleStatusHandler);
-    });
-    
-    // Delete buttons
-    container.querySelectorAll('.delete-link-btn').forEach(btn => {
-        btn.removeEventListener('click', this.deleteLinkHandler);
-        this.deleteLinkHandler = (e) => {
-            e.stopPropagation();
-            const id = btn.getAttribute('data-id');
-            this.toggleDeleteSection(id);
-        };
-        btn.addEventListener('click', this.deleteLinkHandler);
-    });
-    
-    // Cancel delete buttons
-    container.querySelectorAll('.cancel-delete-btn').forEach(btn => {
-        btn.removeEventListener('click', this.cancelDeleteHandler);
-        this.cancelDeleteHandler = (e) => {
-            e.stopPropagation();
-            const id = btn.getAttribute('data-id');
-            this.hideDeleteSection(id);
-        };
-        btn.addEventListener('click', this.cancelDeleteHandler);
-    });
-    
-    // Confirm delete buttons
-    container.querySelectorAll('.confirm-delete-btn').forEach(btn => {
-        btn.removeEventListener('click', this.confirmDeleteHandler);
-        this.confirmDeleteHandler = async (e) => {
-            e.stopPropagation();
-            const id = btn.getAttribute('data-id');
-            await this.deleteLink(id);
-            this.showSuccess('Link deleted');
-            this.renderLinksList();
-        };
-        btn.addEventListener('click', this.confirmDeleteHandler);
-    });
-}
+        const links = Object.values(this.sharedWithMeLinks);
+        if (links.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-users empty-state-icon"></i>
+                    <p>No links have been shared with you yet.</p>
+                    <p class="small">When someone shares a link with you, it will appear here.</p>
+                </div>
+            `;
+            return;
+        }
 
-    // Toggle delete section visibility
+        let html = '';
+        const now = new Date();
+
+        for (const link of links) {
+            const isExpired = link.expiration && new Date(link.expiration) < now;
+            const isDestroyed = link.isDestroyed === true;
+            const isPending = link.status === 'pending';
+            const isActive = link.status === 'active' || !link.status;
+            const secureUrl = `${this.getSiteUrlSync()}?id=${link.id}`;
+
+            const isAccessible = isActive && !isExpired && !isDestroyed && !isPending;
+
+            html += `
+                <div class="link-card ${isExpired || isDestroyed || isPending ? 'inactive' : ''}" data-link-id="${link.id}">
+                    <div class="link-card-header">
+                        <div class="link-title-section">
+                            <span class="link-title-icon"><i class="fas fa-share-alt"></i></span>
+                            <span class="link-title">${this.escapeHtml(link.title)}</span>
+                            <span class="link-owner-badge">
+                                by ${this.escapeHtml(link.ownerPhone)}
+                            </span>
+                        </div>
+                        <div class="link-header-actions">
+                            <a href="${secureUrl}" 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               class="btn-icon open-link-btn ${!isAccessible ? 'disabled' : ''}"
+                               ${!isAccessible ? 'style="pointer-events:none; opacity:0.4;"' : ''}
+                               title="Open Link">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+
+                            <button class="btn-icon share-link-btn" data-url="${secureUrl}" data-title="${this.escapeHtml(link.title)}" ${isPending ? 'disabled' : ''} title="Share Link">
+                                <i class="fas fa-share-alt"></i>
+                            </button>
+                            <button class="btn-icon copy-link-btn" data-url="${secureUrl}" ${isPending ? 'disabled' : ''} title="Copy Link">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+        this.attachSharedLinkEventListeners(container);
+    }
+
+    attachSharedLinkEventListeners(container) {
+        container.querySelectorAll('.copy-link-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const url = btn.getAttribute('data-url');
+                await this.copyToClipboard(url);
+                this.showSuccess('Link copied!');
+            });
+        });
+
+        container.querySelectorAll('.share-link-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const url = btn.getAttribute('data-url');
+                const title = btn.getAttribute('data-title') || 'Shared Content';
+                await this.shareLink(url, title);
+            });
+        });
+    }
+
+    async renderAccessRequests(linkId) {
+        const pendingRequests = await this.getPendingRequests(linkId);
+        if (pendingRequests.length === 0) return '';
+
+        let requestsHtml = `
+            <div class="access-requests-section">
+                <div class="requests-header">
+                    <i class="fas fa-users"></i>
+                    <span>${pendingRequests.length} pending access request(s)</span>
+                </div>
+                <div class="requests-list">
+        `;
+
+        for (const req of pendingRequests) {
+            const plainPhone = req.requesterPhone;
+            requestsHtml += `
+                <div class="request-item" data-request-phone="${plainPhone}">
+                    <span>${this.escapeHtml(plainPhone)}</span>
+                    <span class="request-time">${new Date(req.requestedAt).toLocaleString()}</span>
+                    <div class="request-actions">
+                        <button class="btn btn-small btn-success approve-request-btn" data-link="${linkId}" data-phone="${plainPhone}">Approve</button>
+                        <button class="btn btn-small btn-danger deny-request-btn" data-link="${linkId}" data-phone="${plainPhone}">Deny</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        requestsHtml += `
+                </div>
+            </div>
+        `;
+
+        return requestsHtml;
+    }
+
+    attachLinkEventListeners(container) {
+        container.querySelectorAll('.copy-link-btn').forEach(btn => {
+            btn.removeEventListener('click', this.copyLinkHandler);
+            this.copyLinkHandler = async (e) => {
+                e.stopPropagation();
+                const url = btn.getAttribute('data-url');
+                await this.copyToClipboard(url);
+                this.showSuccess('Link copied!');
+            };
+            btn.addEventListener('click', this.copyLinkHandler);
+        });
+
+        container.querySelectorAll('.edit-link-btn').forEach(btn => {
+            btn.removeEventListener('click', this.editLinkHandler);
+            this.editLinkHandler = async (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                await this.editLink(id);
+            };
+            btn.addEventListener('click', this.editLinkHandler);
+        });
+        
+        container.querySelectorAll('.share-link-btn').forEach(btn => {
+            btn.removeEventListener('click', this.shareLinkHandler);
+            this.shareLinkHandler = async (e) => {
+                e.stopPropagation();
+                const url = btn.getAttribute('data-url');
+                const title = btn.getAttribute('data-title') || 'Shared Content';
+                await this.shareLink(url, title);
+            };
+            btn.addEventListener('click', this.shareLinkHandler);
+        });
+        
+        container.querySelectorAll('.toggle-status-btn').forEach(btn => {
+            btn.removeEventListener('click', this.toggleStatusHandler);
+            this.toggleStatusHandler = async (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                await this.toggleLinkStatus(id);
+                this.renderLinksList();
+            };
+            btn.addEventListener('click', this.toggleStatusHandler);
+        });
+        
+        container.querySelectorAll('.delete-link-btn').forEach(btn => {
+            btn.removeEventListener('click', this.deleteLinkHandler);
+            this.deleteLinkHandler = (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                this.toggleDeleteSection(id);
+            };
+            btn.addEventListener('click', this.deleteLinkHandler);
+        });
+        
+        container.querySelectorAll('.cancel-delete-btn').forEach(btn => {
+            btn.removeEventListener('click', this.cancelDeleteHandler);
+            this.cancelDeleteHandler = (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                this.hideDeleteSection(id);
+            };
+            btn.addEventListener('click', this.cancelDeleteHandler);
+        });
+        
+        container.querySelectorAll('.confirm-delete-btn').forEach(btn => {
+            btn.removeEventListener('click', this.confirmDeleteHandler);
+            this.confirmDeleteHandler = async (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                await this.deleteLink(id);
+                this.showSuccess('Link deleted');
+                this.renderLinksList();
+            };
+            btn.addEventListener('click', this.confirmDeleteHandler);
+        });
+
+        container.addEventListener('click', async (e) => {
+            const approveBtn = e.target.closest('.approve-request-btn');
+            if (approveBtn) {
+                e.stopPropagation();
+                const linkId = approveBtn.dataset.link;
+                const phone = approveBtn.dataset.phone;
+                const requestItem = approveBtn.closest('.request-item');
+                
+                const success = await this.approveAccessRequest(linkId, phone);
+                if (success) {
+                    if (requestItem) {
+                        const section = requestItem.closest('.access-requests-section');
+                        requestItem.remove();
+                        if (section && section.querySelectorAll('.request-item').length === 0) {
+                            section.remove();
+                        }
+                    }
+                    this.showSuccess(`Access granted to ${phone}`);
+                }
+                return;
+            }
+
+            const denyBtn = e.target.closest('.deny-request-btn');
+            if (denyBtn) {
+                e.stopPropagation();
+                const linkId = denyBtn.dataset.link;
+                const phone = denyBtn.dataset.phone;
+                const requestItem = denyBtn.closest('.request-item');
+                
+                const success = await this.denyAccessRequest(linkId, phone);
+                if (success) {
+                    if (requestItem) {
+                        const section = requestItem.closest('.access-requests-section');
+                        requestItem.remove();
+                        if (section && section.querySelectorAll('.request-item').length === 0) {
+                            section.remove();
+                        }
+                    }
+                    this.showSuccess(`Access denied for ${phone}`);
+                }
+                return;
+            }
+        });
+    }
+
     toggleDeleteSection(linkId) {
         const section = document.getElementById(`deleteSection_${linkId}`);
         if (section) {
@@ -867,7 +1325,6 @@ attachLinkEventListeners(container) {
         }
     }
 
-    // Hide delete section
     hideDeleteSection(linkId) {
         const section = document.getElementById(`deleteSection_${linkId}`);
         if (section) {
@@ -875,19 +1332,10 @@ attachLinkEventListeners(container) {
         }
     }
 
-    // Helper: Hide all delete sections
-    hideAllDeleteSections() {
-        document.querySelectorAll('.share-delete-section').forEach(section => {
-            section.style.display = 'none';
-        });
-    }
-
-    // Show result section 
     showResultSection(linkData, secureUrl, contentType, photoCount) {
         const resultSection = document.getElementById('linkResultSection');
         if (!resultSection) return;
         
-        // Store title for sharing
         resultSection.setAttribute('data-share-title', linkData.title || 'Shared Content');
     
         const linkUrlEl = document.getElementById('resultLinkUrl');
@@ -898,12 +1346,10 @@ attachLinkEventListeners(container) {
         
         if (linkUrlEl) linkUrlEl.textContent = secureUrl;
         
-        // Show password warning if needed
         if (warningEl) {
             warningEl.style.display = linkData.hasPassword ? 'block' : 'none';
         }
         
-        // Show view once warning with custom seconds
         if (viewOnceWarningEl && linkData.viewOnce) {
             viewOnceWarningEl.style.display = 'block';
             if (secondsSpan) {
@@ -913,12 +1359,11 @@ attachLinkEventListeners(container) {
             viewOnceWarningEl.style.display = 'none';
         }
         
-        // Show photo info if photo share
         if (photoInfoEl && contentType === 'photos') {
             photoInfoEl.style.display = 'block';
             photoInfoEl.innerHTML = `
                 <div class="photo-share-info">
-                    <span class="material-icons">photo_library</span>
+                    <i class="fas fa-images"></i>
                     <span>${photoCount} photo${photoCount !== 1 ? 's' : ''} shared</span>
                 </div>
             `;
@@ -930,7 +1375,6 @@ attachLinkEventListeners(container) {
         resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    // Hide result section
     hideResultSection() {
         const resultSection = document.getElementById('linkResultSection');
         if (resultSection) {
@@ -938,331 +1382,656 @@ attachLinkEventListeners(container) {
         }
     }
 
-    // Attach result section events
-attachResultEvents() {
-    const closeResult = () => this.hideResultSection();
-    
-    const closeBtn = document.getElementById('closeResultBtn');
-    const closeActionBtn = document.getElementById('closeResultActionBtn');
-    const copyBtn = document.getElementById('copyResultLinkBtn');
-    const shareBtn = document.getElementById('shareResultLinkBtn');
-    
-    if (closeBtn) closeBtn.addEventListener('click', closeResult);
-    if (closeActionBtn) closeActionBtn.addEventListener('click', closeResult);
-    
-    if (copyBtn) {
-        copyBtn.addEventListener('click', async () => {
-            const linkUrl = document.getElementById('resultLinkUrl')?.textContent;
-            if (linkUrl) {
-                await this.copyToClipboard(linkUrl);
-                this.showSuccess('Link copied!');
-                setTimeout(() => this.hideResultSection(), 1500);
-            }
-        });
-    }
-    
-    // NEW: Share result button handler
-    if (shareBtn) {
-        shareBtn.addEventListener('click', async () => {
-            const resultSection = document.getElementById('linkResultSection');
-            const linkUrl = document.getElementById('resultLinkUrl')?.textContent;
-            const linkTitle = resultSection?.getAttribute('data-share-title') || 'Shared Content';
-            
-            if (linkUrl) {
-                await this.shareLink(linkUrl, linkTitle);
-                setTimeout(() => this.hideResultSection(), 1500);
-            }
-        });
-    }
-}
-
-    // Update security settings
-    updateSecuritySettings(setting, value) {
-        this.shareSettings = this.shareSettings || {};
-        this.shareSettings[setting] = value;
+    attachResultEvents() {
+        const closeResult = () => this.hideResultSection();
         
-        if (setting === 'passwordProtection' && !value) {
-            const passwordInput = document.getElementById('linkPassword');
-            if (passwordInput) passwordInput.value = '';
-        }
-    }
-
-    toggleViewOnceHelp(show) {
-        const helpText = document.getElementById('viewOnceHelp');
-        const secondsContainer = document.getElementById('viewOnceSecondsContainer');
+        const closeBtn = document.getElementById('closeResultBtn');
+        const closeActionBtn = document.getElementById('closeResultActionBtn');
+        const copyBtn = document.getElementById('copyResultLinkBtn');
+        const shareBtn = document.getElementById('shareResultLinkBtn');
         
-        if (helpText) {
-            helpText.style.display = show ? 'block' : 'none';
-        }
+        if (closeBtn) closeBtn.addEventListener('click', closeResult);
+        if (closeActionBtn) closeActionBtn.addEventListener('click', closeResult);
         
-        if (secondsContainer) {
-            secondsContainer.style.display = show ? 'block' : 'none';
-        }
-    }
-
-    updateSecondsDisplay() {
-        const slider = document.getElementById('viewOnceSecondsSlider');
-        const display = document.getElementById('secondsValueDisplay');
-        if (slider && display) {
-            display.textContent = slider.value;
-        }
-    }
-
-    // ========== HANDLE CREATE LINK (UNIFIED) ==========
-async handleCreateLink(e) {
-    e.preventDefault();
-
-    // ----- Get form values -----
-    const title = document.getElementById('linkTitle')?.value.trim();
-    const textContent = document.getElementById('linkContent')?.value;
-    const passwordProtection = document.getElementById('passwordProtectionToggle')?.checked || false;
-    const password = passwordProtection ? document.getElementById('linkPassword')?.value : '';
-    let expiration = document.getElementById('expirationDate')?.value;
-    const viewOnce = document.getElementById('viewOnceToggle')?.checked || false;
-    let viewOnceSeconds = 3;
-    if (viewOnce) {
-        const slider = document.getElementById('viewOnceSecondsSlider');
-        viewOnceSeconds = slider ? parseInt(slider.value, 10) : 3;
-    }
-    const linkStatus = 'active';
-
-    // ----- Set default expiration (7 days from now) if empty -----
-    if (!expiration) {
-        const defaultExp = new Date();
-        defaultExp.setDate(defaultExp.getDate() + 7);
-        expiration = defaultExp.toISOString().slice(0, 16);
-    }
-
-    // ----- Validation -----
-    if (!title || title.length < 3) {
-        this.showError('Title must be at least 3 characters');
-        return;
-    }
-    if (title.length > 24) {
-        this.showError('Title is too long (max 24 characters)');
-        return;
-    }
-    if (passwordProtection && (!password || password.length < 4)) {
-        this.showError('Password must be at least 4 characters');
-        return;
-    }
-    if (textContent && textContent.length > 50000) {
-        this.showError(`Text is too long. Maximum 50000 characters.`);
-        return;
-    }
-
-    // Disable submit button during processing
-    const submitBtn = document.getElementById('createLinkSubmitBtn');
-    const originalBtnText = submitBtn.innerHTML;
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-hourglass-start"></i> Processing...';
-
-    let operationSuccess = false;  // Track success/failure
-
-    try {
-        const photoIds = Array.from(this.selectedPhotoIds);
-
-        if (this.editMode && this.currentEditLinkId) {
-            // ----- UPDATE EXISTING LINK -----
-            await this.updateShareLink(
-                this.currentEditLinkId,
-                title,
-                textContent,
-                photoIds,
-                passwordProtection ? 'password' : 'nopassword',
-                password,
-                expiration,
-                viewOnce,
-                viewOnceSeconds,
-                linkStatus
-            );
-
-            this.hideResultSection();
-            this.showSuccess('Share link updated successfully!');
-            this.renderLinksList();
-            this.cancelEdit();         // clears form, exits edit mode, and resets button text
-        } else {
-            // ----- CREATE NEW LINK -----
-            const result = await this.createShareLink(
-                title,
-                textContent,
-                photoIds,
-                passwordProtection ? 'password' : 'nopassword',
-                password,
-                expiration,
-                viewOnce,
-                viewOnceSeconds,
-                linkStatus
-            );
-
-            this.hideResultSection();
-            this.showResultSection(result.linkData, result.secureUrl, 'mixed', result.linkData.photoCount);
-            this.showSuccess('Share link created successfully!');
-            this.clearForm();
-            this.renderLinksList();
-        }
-
-        operationSuccess = true;  // Mark as successful
-    } catch (error) {
-        console.error('Link operation error:', error);
-        this.showError(error.message || 'Operation failed');
-    } finally {
-        // Re-enable submit button
-        submitBtn.disabled = false;
-        // Only restore original button text if operation failed
-        if (!operationSuccess) {
-            submitBtn.innerHTML = originalBtnText;
-        }
-    }
-}
-
-clearForm() {
-    document.getElementById('linkTitle').value = '';
-    document.getElementById('linkContent').value = '';
-    document.getElementById('linkPassword').value = '';
-    const defaultExpiration = new Date();
-    defaultExpiration.setDate(defaultExpiration.getDate() + 7);
-    document.getElementById('expirationDate').value = defaultExpiration.toISOString().slice(0, 16);
-    
-    const passwordToggle = document.getElementById('passwordProtectionToggle');
-    if (passwordToggle) {
-        passwordToggle.checked = false;
-        this.togglePasswordField(false);
-    }
-    const viewOnceToggle = document.getElementById('viewOnceToggle');
-    if (viewOnceToggle) {
-        viewOnceToggle.checked = false;
-        const secondsContainer = document.getElementById('viewOnceSecondsContainer');
-        if (secondsContainer) secondsContainer.style.display = 'none';
-    }
-    const secondsSlider = document.getElementById('viewOnceSecondsSlider');
-    if (secondsSlider) secondsSlider.value = '3';
-    
-    // Clear photo selection and available photos
-    this.selectedPhotoIds.clear();
-    this.availablePhotos = []; // Reset available photos
-    this.updatePhotoUI();
-}
-
-togglePasswordField(show) {
-    const passwordFieldGroup = document.getElementById('passwordFieldGroup');
-    if (passwordFieldGroup) {
-        passwordFieldGroup.style.display = show ? 'block' : 'none';
-    }
-    const passwordInput = document.getElementById('linkPassword');
-    if (passwordInput && !show) {
-        passwordInput.value = '';
-    }
-}
-
-// ========== UPDATED EVENT LISTENERS ==========
-    setupEventListeners() {
-        // Navigation
-        document.querySelectorAll('.share-nav-item').forEach(item => {
-            item.addEventListener('click', () => this.showSection(item.getAttribute('data-section')));
-        });
-        
-        document.getElementById('browsePhotosBtn')?.addEventListener('click', () => {
-            this.switchToPhotosModule();
-        });
-
-        document.getElementById('browsePhotosBtn')?.addEventListener('click', () => {
-            this.openPhotoLibraryForSharing();
-        });
-
-        // Form submission
-        document.getElementById('createLinkForm')?.addEventListener('submit', (e) => this.handleCreateLink(e));
-        document.getElementById('clearFormBtn')?.addEventListener('click', () => this.clearForm());
-        this.attachResultEvents();
-
-        // Security toggles
-        document.getElementById('passwordProtectionToggle')?.addEventListener('change', (e) => this.togglePasswordField(e.target.checked));
-        document.getElementById('viewOnceToggle')?.addEventListener('change', (e) => {
-            const container = document.getElementById('viewOnceSecondsContainer');
-            if (container) container.style.display = e.target.checked ? 'block' : 'none';
-        });
-        const secondsSlider = document.getElementById('viewOnceSecondsSlider');
-        if (secondsSlider) {
-            secondsSlider.addEventListener('input', () => {
-                const display = document.getElementById('secondsValueDisplay');
-                if (display) display.textContent = secondsSlider.value;
-            });
-        }
-
-        // Password visibility toggle
-        document.querySelectorAll('.toggle-password-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetId = btn.getAttribute('data-target');
-                const input = document.getElementById(targetId);
-                if (input) {
-                    const type = input.type === 'password' ? 'text' : 'password';
-                    input.type = type;
-                    btn.querySelector('.material-icons').textContent = type === 'password' ? 'visibility' : 'visibility_off';
+        if (copyBtn) {
+            copyBtn.addEventListener('click', async () => {
+                const linkUrl = document.getElementById('resultLinkUrl')?.textContent;
+                if (linkUrl) {
+                    await this.copyToClipboard(linkUrl);
+                    this.showSuccess('Link copied!');
+                    setTimeout(() => this.hideResultSection(), 1500);
                 }
             });
-        });
+        }
+        
+        if (shareBtn) {
+            shareBtn.addEventListener('click', async () => {
+                const resultSection = document.getElementById('linkResultSection');
+                const linkUrl = document.getElementById('resultLinkUrl')?.textContent;
+                const linkTitle = resultSection?.getAttribute('data-share-title') || 'Shared Content';
+                
+                if (linkUrl) {
+                    await this.shareLink(linkUrl, linkTitle);
+                    setTimeout(() => this.hideResultSection(), 1500);
+                }
+            });
+        }
+    }
 
-        this.setupExpirationLimit();
+    togglePasswordField(show) {
+        const passwordFieldGroup = document.getElementById('passwordFieldGroup');
+        if (passwordFieldGroup) {
+            passwordFieldGroup.style.display = show ? 'block' : 'none';
+        }
+        const passwordInput = document.getElementById('linkPassword');
+        if (passwordInput && !show) {
+            passwordInput.value = '';
+        }
+    }
+
+    // ========== HANDLE CREATE LINK ==========
+    async handleCreateLink(e) {
+        e.preventDefault();
+
+        const title = document.getElementById('linkTitle')?.value.trim();
+        const textContent = document.getElementById('linkContent')?.value;
+        const passwordProtection = document.getElementById('passwordProtectionToggle')?.checked || false;
+        const password = passwordProtection ? document.getElementById('linkPassword')?.value : '';
+        let expiration = document.getElementById('expirationDate')?.value;
+        const viewOnce = document.getElementById('viewOnceToggle')?.checked || false;
+        let viewOnceSeconds = 3;
+        if (viewOnce) {
+            const slider = document.getElementById('viewOnceSecondsSlider');
+            viewOnceSeconds = slider ? parseInt(slider.value, 10) : 3;
+        }
+
+        const watermarkEnabled = document.getElementById('watermarkToggle')?.checked || false;
+        const watermarkText = watermarkEnabled
+            ? (document.getElementById('watermarkText')?.value.trim() || 'Confidential')
+            : null;
+
+        const linkStatus = 'active';
+
+        const shareWithToggle = document.getElementById('shareWithToggle')?.checked || false;
+        const shareWithInput = document.getElementById('shareWithInput')?.value || '';
+        const allowedPhones = shareWithToggle
+            ? shareWithInput.split(',').map(phone => {
+                const trimmed = phone.trim();
+                const validation = PhoneValidator.validatePhone(trimmed);
+                if (!validation.valid) {
+                    throw new Error(`Invalid phone number: "${trimmed}" – ${validation.reason}`);
+                }
+                return PhoneValidator.normalizePhone(trimmed);
+            })
+            : [];
+            
+        if (!expiration) {
+            const defaultExp = new Date();
+            defaultExp.setDate(defaultExp.getDate() + 7);
+            expiration = defaultExp.toISOString().slice(0, 16);
+        }
+
+        if (!title || title.length < 3) {
+            this.showError('Title must be at least 3 characters');
+            return;
+        }
+        if (title.length > 24) {
+            this.showError('Title is too long (max 24 characters)');
+            return;
+        }
+        if (passwordProtection && (!password || password.length < 4)) {
+            this.showError('Password must be at least 4 characters');
+            return;
+        }
+        if (textContent && textContent.length > 50000) {
+            this.showError(`Text is too long. Maximum 50000 characters.`);
+            return;
+        }
+
+        const submitBtn = document.getElementById('createLinkSubmitBtn');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-hourglass-start"></i> Processing...';
+
+        let operationSuccess = false;
+
+        try {
+            const photoIds = Array.from(this.selectedPhotoIds);
+
+            if (this.editMode && this.currentEditLinkId) {
+                await this.updateShareLink(
+                    this.currentEditLinkId,
+                    title,
+                    textContent,
+                    photoIds,
+                    passwordProtection ? 'password' : 'nopassword',
+                    password,
+                    expiration,
+                    viewOnce,
+                    viewOnceSeconds,
+                    linkStatus,
+                    watermarkText,
+                    allowedPhones
+                );
+
+                this.hideResultSection();
+                this.showSuccess('Share link updated successfully!');
+                this.renderLinksList();
+                this.cancelEdit();
+            } else {
+                const result = await this.createShareLink(
+                    title,
+                    textContent,
+                    photoIds,
+                    passwordProtection ? 'password' : 'nopassword',
+                    password,
+                    expiration,
+                    viewOnce,
+                    viewOnceSeconds,
+                    linkStatus,
+                    watermarkText,
+                    allowedPhones
+                );
+
+                this.hideResultSection();
+                this.showResultSection(result.linkData, result.secureUrl, 'mixed', result.linkData.photoCount);
+                this.showSuccess('Share link created successfully!');
+                this.clearForm();
+                this.renderLinksList();
+            }
+
+            operationSuccess = true;
+        } catch (error) {
+            console.error('Link operation error:', error);
+            this.showError(error.message || 'Operation failed');
+        } finally {
+            submitBtn.disabled = false;
+            const defaultText = this.editMode ? '<i class="fas fa-save"></i> Update Link' : '<i class="fas fa-link"></i> Create Share Link';
+            submitBtn.innerHTML = defaultText;
+        }
+    }
+
+    clearForm() {
+        document.getElementById('linkTitle').value = '';
+        document.getElementById('linkContent').value = '';
+        document.getElementById('linkPassword').value = '';
+
+        document.getElementById('watermarkToggle').checked = false;
+        document.getElementById('watermarkTextContainer').style.display = 'none';
+        document.getElementById('watermarkText').value = 'Confidential';
+
+        document.getElementById('shareWithToggle').checked = false;
+        document.getElementById('shareWithContainer').style.display = 'none';
+        document.getElementById('shareWithInput').value = '';
+
         const defaultExpiration = new Date();
         defaultExpiration.setDate(defaultExpiration.getDate() + 7);
-        const expirationInput = document.getElementById('expirationDate');
-        if (expirationInput && !expirationInput.value) {
-            expirationInput.value = defaultExpiration.toISOString().slice(0, 16);
+        document.getElementById('expirationDate').value = defaultExpiration.toISOString().slice(0, 16);
+        
+        const passwordToggle = document.getElementById('passwordProtectionToggle');
+        if (passwordToggle) {
+            passwordToggle.checked = false;
+            this.togglePasswordField(false);
         }
+        const viewOnceToggle = document.getElementById('viewOnceToggle');
+        if (viewOnceToggle) {
+            viewOnceToggle.checked = false;
+            const secondsContainer = document.getElementById('viewOnceSecondsContainer');
+            if (secondsContainer) secondsContainer.style.display = 'none';
+        }
+        const secondsSlider = document.getElementById('viewOnceSecondsSlider');
+        if (secondsSlider) secondsSlider.value = '3';
+        
+        this.selectedPhotoIds.clear();
+        this.availablePhotos = [];
+        this.updatePhotoUI();
     }
 
-    setupExpirationLimit() {
-        const expirationInput = document.getElementById('expirationDate');
-        if (!expirationInput) return;
+    // ========== UPDATE SHARE LINK ==========
+    // Complete updateShareLink method
+    async updateShareLink(linkId, title, textContent, photoIds, protectionType, password, expiration, viewOnce, viewOnceSeconds, status, watermarkText = null, allowedPhones = []) {
+        const existingLink = this.secureLinks[linkId];
+        if (!existingLink) throw new Error('Link not found');
         
-        const maxDate = new Date();
-        maxDate.setDate(maxDate.getDate() + 7);
-        expirationInput.max = maxDate.toISOString().slice(0, 16);
+        const oldAllowedPhones = existingLink.allowedPhones || [];
+
+        // Normalize all phone numbers for consistent comparison
+        const normalizedAllowedPhones = allowedPhones
+            .map(phone => {
+                const trimmed = phone.trim();
+                const validation = PhoneValidator.validatePhone(trimmed);
+                if (!validation.valid) {
+                    throw new Error(`Invalid phone number: "${trimmed}" – ${validation.reason}`);
+                }
+                return PhoneValidator.normalizePhone(trimmed);
+            })
+            .filter(p => p.length > 0);
+
+        let passwordHash = existingLink.passwordHash;
+        let hasPassword = existingLink.hasPassword;
         
-        const minDate = new Date();
-        minDate.setHours(0, 0, 0, 0);
-        expirationInput.min = minDate.toISOString().slice(0, 16);
-        
-        if (!expirationInput.value) {
-            expirationInput.value = maxDate.toISOString().slice(0, 16);
+        if (protectionType === 'password' && password) {
+            passwordHash = await this.hashPassword(password);
+            hasPassword = true;
+        } else if (protectionType === 'nopassword') {
+            passwordHash = null;
+            hasPassword = false;
         }
+        
+        // Rebuild photos array from selected photo IDs
+        const photos = [];
+        for (const photoId of photoIds) {
+            const photo = this.availablePhotos.find(p => p.id === photoId);
+            if (photo) {
+                photos.push({
+                    id: photo.id,
+                    name: photo.name,
+                    url: photo.url,
+                    size: photo.size,
+                    date: photo.date,
+                    description: photo.description || ''
+                });
+            }
+        }
+        
+        const updatedLinkData = {
+            ...existingLink,
+            title: title,
+            textContent: textContent || '',
+            photos: photos,
+            photoCount: photos.length,
+            passwordHash: passwordHash,
+            hasPassword: hasPassword,
+            expiration: expiration || null,
+            viewOnce: viewOnce,
+            viewOnceSeconds: viewOnce ? viewOnceSeconds : null,
+            status: status,
+            updatedAt: new Date().toISOString(),
+            watermarkText: watermarkText,
+            allowedPhones: normalizedAllowedPhones,   // store normalized version
+        };
+        
+        this.secureLinks[linkId] = updatedLinkData;
+        
+        // Update in Firebase
+        await this.shareDB.ref(`shareLinks/${linkId}`).update({
+            title: title,
+            textContent: textContent || '',
+            photos: photos,
+            photoCount: photos.length,
+            passwordHash: passwordHash,
+            hasPassword: hasPassword,
+            expiration: expiration || null,
+            viewOnce: viewOnce,
+            viewOnceSeconds: viewOnce ? viewOnceSeconds : null,
+            status: status,
+            updatedAt: new Date().toISOString(),
+            watermarkText: watermarkText,
+            allowedPhones: normalizedAllowedPhones
+        });
+
+        // Update sharedWithMe index (add/remove users based on changes)
+        await this.updateSharedWithMeIndex(linkId, oldAllowedPhones, normalizedAllowedPhones);
+        
+        return updatedLinkData;
     }
 
-    showWarning(message) {
-        console.warn(message);
-        const warningEl = document.createElement('div');
-        warningEl.className = 'share-message warning';
-        warningEl.innerHTML = `<span class="material-icons">warning</span><span>${message}</span>`;
-        const container = document.querySelector('.share-content');
-        if (container) {
-            container.insertBefore(warningEl, container.firstChild);
-            setTimeout(() => warningEl.remove(), 5000);
+    // ========== EDIT LINK ==========
+    async editLink(linkId) {
+        const link = this.secureLinks[linkId];
+        if (!link) {
+            this.showError('Link not found');
+            return;
         }
+        
+        const now = new Date();
+        const isExpired = link.expiration && new Date(link.expiration) < now;
+        if (link.isDestroyed || isExpired || link.status === 'pending') {
+            this.showError('Cannot edit expired, destroyed, or paused links');
+            return;
+        }
+        
+        this.showSection('create');
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        this.editMode = true;
+        this.currentEditLinkId = linkId;
+        this.setEditModeUI(true);
+        
+        this.populateEditForm(link);
+        
+        document.getElementById('createLinkForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    toggleContentType(type) {
-        const textArea = document.getElementById('textContentArea');
-        const photoArea = document.getElementById('photoContentArea');
+    populateEditForm(link) {
+        const titleInput = document.getElementById('linkTitle');
+        if (titleInput) titleInput.value = link.title || '';
         
-        if (type === 'text') {
-            textArea.style.display = 'block';
-            photoArea.style.display = 'none';
+        const contentTextarea = document.getElementById('linkContent');
+        if (contentTextarea) contentTextarea.value = link.textContent || '';
+        
+        const passwordToggle = document.getElementById('passwordProtectionToggle');
+        if (passwordToggle) {
+            passwordToggle.checked = link.hasPassword || false;
+            this.togglePasswordField(link.hasPassword || false);
+            if (link.hasPassword) {
+                const passwordInput = document.getElementById('linkPassword');
+                if (passwordInput) passwordInput.value = '';
+            }
+        }
+        
+        const viewOnceToggle = document.getElementById('viewOnceToggle');
+        const secondsContainer = document.getElementById('viewOnceSecondsContainer');
+        const secondsSlider = document.getElementById('viewOnceSecondsSlider');
+        const secondsDisplay = document.getElementById('secondsValueDisplay');
+        
+        if (viewOnceToggle) {
+            viewOnceToggle.checked = link.viewOnce || false;
+            if (secondsContainer) secondsContainer.style.display = link.viewOnce ? 'block' : 'none';
+            if (secondsSlider && link.viewOnceSeconds) {
+                secondsSlider.value = link.viewOnceSeconds;
+                if (secondsDisplay) secondsDisplay.textContent = link.viewOnceSeconds;
+            } else if (secondsSlider) {
+                secondsSlider.value = 3;
+                if (secondsDisplay) secondsDisplay.textContent = '3';
+            }
+        }
+        
+        const watermarkToggle = document.getElementById('watermarkToggle');
+        const watermarkTextInput = document.getElementById('watermarkText');
+        const watermarkContainer = document.getElementById('watermarkTextContainer');
+
+        if (watermarkToggle && watermarkTextInput && watermarkContainer) {
+            const hasWatermark = link.watermarkText && link.watermarkText.length > 0;
+            watermarkToggle.checked = hasWatermark;
+            watermarkContainer.style.display = hasWatermark ? 'block' : 'none';
+            watermarkTextInput.value = hasWatermark ? link.watermarkText : 'Confidential';
+        }
+
+        const shareWithToggle = document.getElementById('shareWithToggle');
+        const shareWithInput = document.getElementById('shareWithInput');
+        const shareWithContainer = document.getElementById('shareWithContainer');
+        if (shareWithToggle && shareWithInput && shareWithContainer) {
+            const hasShareWith = link.allowedPhones && link.allowedPhones.length > 0;
+            shareWithToggle.checked = hasShareWith;
+            shareWithContainer.style.display = hasShareWith ? 'block' : 'none';
+            shareWithInput.value = hasShareWith ? link.allowedPhones.join(', ') : '';
+        }
+
+        if (link.expiration) {
+            const expDate = new Date(link.expiration);
+            const year = expDate.getFullYear();
+            const month = String(expDate.getMonth() + 1).padStart(2, '0');
+            const day = String(expDate.getDate()).padStart(2, '0');
+            const hours = String(expDate.getHours()).padStart(2, '0');
+            const minutes = String(expDate.getMinutes()).padStart(2, '0');
+            const expLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
+            const expirationInput = document.getElementById('expirationDate');
+            if (expirationInput) expirationInput.value = expLocal;
         } else {
-            textArea.style.display = 'none';
-            photoArea.style.display = 'block';
+            const defaultExp = new Date();
+            defaultExp.setDate(defaultExp.getDate() + 7);
+            const expirationInput = document.getElementById('expirationDate');
+            if (expirationInput) expirationInput.value = defaultExp.toISOString().slice(0, 16);
+        }
+
+        this.selectedPhotoIds.clear();
+        this.availablePhotos = [];
+        
+        if (link.photos && link.photos.length) {
+            this.availablePhotos = link.photos.map(photo => ({
+                id: photo.id,
+                name: photo.name || 'Untitled',
+                url: photo.url,
+                size: photo.size || 0,
+                date: photo.date || new Date().toISOString(),
+                description: photo.description || ''
+            }));
+            
+            for (const photo of this.availablePhotos) {
+                this.selectedPhotoIds.add(photo.id);
+            }
+        }
+        
+        setTimeout(() => {
+            this.renderPhotoSelectionGrid();
+        }, 50);
+    }
+
+    renderPhotoSelectionGrid() {
+        const gridContainer = document.getElementById('photoSelectionGrid');
+        if (!gridContainer) return;
+        
+        gridContainer.innerHTML = this.availablePhotos.map(photo => `
+            <div class="share-photo-card ${this.selectedPhotoIds.has(photo.id) ? 'selected' : ''}" data-photo-id="${photo.id}">
+                <div class="share-photo-thumbnail">
+                    <img src="${photo.url}" alt="${this.escapeHtml(photo.name)}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23666%22%3E%3Cpath d=%22M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z%22/%3E%3C/svg%3E'">
+                    <div class="share-photo-overlay">
+                        <input type="checkbox" class="share-photo-checkbox" ${this.selectedPhotoIds.has(photo.id) ? 'checked' : ''}>
+                    </div>
+                </div>
+                <div class="share-photo-info">
+                    <span class="share-photo-name">${this.escapeHtml(photo.name.substring(0, 20))}</span>
+                </div>
+            </div>
+        `).join('');
+        
+        gridContainer.querySelectorAll('.share-photo-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (e.target.type !== 'checkbox') {
+                    const photoId = card.dataset.photoId;
+                    this.togglePhotoSelection(photoId);
+                }
+            });
+            const checkbox = card.querySelector('.share-photo-checkbox');
+            if (checkbox) {
+                checkbox.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    const photoId = card.getAttribute('data-photo-id');
+                    if (checkbox.checked) {
+                        this.selectedPhotoIds.add(photoId);
+                    } else {
+                        this.selectedPhotoIds.delete(photoId);
+                    }
+                    this.updatePhotoUI();
+                });
+            }
+        });
+    }
+
+    setEditModeUI(isEditing) {
+        const submitBtn = document.getElementById('createLinkSubmitBtn');
+        const formTitle = document.querySelector('#create-section .section-header h2');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
+        
+        if (isEditing) {
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Link';
+                submitBtn.classList.add('btn-edit-mode');
+            }
+            if (formTitle) formTitle.textContent = 'Edit Share Link';
+            
+            if (!cancelEditBtn) {
+                const formActions = document.querySelector('#createLinkForm .form-actions');
+                if (formActions) {
+                    const cancelBtn = document.createElement('button');
+                    cancelBtn.type = 'button';
+                    cancelBtn.id = 'cancelEditBtn';
+                    cancelBtn.className = 'btn btn-secondary';
+                    cancelBtn.innerHTML = '<i class="fas fa-times"></i> Cancel Edit';
+                    cancelBtn.addEventListener('click', () => this.cancelEdit());
+                    formActions.appendChild(cancelBtn);
+                }
+            } else {
+                cancelEditBtn.style.display = 'inline-flex';
+            }
+        } else {
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-link"></i> Create Share Link';
+                submitBtn.classList.remove('btn-edit-mode');
+            }
+            if (formTitle) formTitle.textContent = 'Create Share Link';
+            if (cancelEditBtn) cancelEditBtn.style.display = 'none';
+            
+            this.clearForm();
         }
     }
 
-    async copyToClipboard(text) {
+    cancelEdit() {
+        this.editMode = false;
+        this.currentEditLinkId = null;
+        this.setEditModeUI(false);
+        this.clearForm();
+        this.availablePhotos = [];
+        this.selectedPhotoIds.clear();
+        this.updatePhotoUI();
+    }
+
+    // ========== OPEN PHOTO LIBRARY ==========
+    async openPhotoLibraryForSharing() {
+        if (window.photosModule && typeof window.photosModule.selectMultiplePhotos === 'function') {
+            const selectedPhotos = await window.photosModule.selectMultiplePhotos();
+            if (selectedPhotos && selectedPhotos.length) {
+                this.addPhotosToShare(selectedPhotos);
+            }
+        } else {
+            window.xDrive?.navigateToModule('photos');
+            window.addEventListener('photosSelectedForShare', (event) => {
+                if (event.detail?.photos) {
+                    this.addPhotosToShare(event.detail.photos);
+                }
+            }, { once: true });
+        }
+    }
+
+    addPhotosToShare(photos) {
+        for (const photo of photos) {
+            if (!this.availablePhotos.some(p => p.id === photo.id)) {
+                this.availablePhotos.unshift(photo);
+            }
+            this.selectedPhotoIds.add(photo.id);
+        }
+        this.updatePhotoUI();
+        this.showSuccess(`${photos.length} photo(s) added to share`);
+    }
+
+    applyPhotoToShare(photo) {
+        if (!photo || !photo.id) return;
+
+        const existing = this.availablePhotos.find(p => p.id === photo.id);
+        if (!existing) {
+            this.availablePhotos.unshift(photo);
+        }
+
+        this.selectedPhotoIds.clear();
+        this.selectedPhotoIds.add(photo.id);
+
+        this.updatePhotoUI();
+
+        if (this.currentSection !== 'create') {
+            this.showSection('create');
+        }
+
+        setTimeout(() => {
+            this.updatePhotoUI();
+        }, 100);
+    }
+
+    // ========== SHARE LINK ==========
+    async shareLink(url, title = 'Shared Content') {
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: title,
+                    text: 'Check out this shared content!',
+                    url: url
+                });
+                this.showSuccess('Shared successfully!');
+                return true;
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error('Share failed:', error);
+                    return this.fallbackShareCopy(url);
+                }
+                return false;
+            }
+        } else {
+            return this.fallbackShareCopy(url);
+        }
+    }
+
+    async fallbackShareCopy(url) {
+        const copied = await this.copyToClipboard(url);
+        if (copied) {
+            this.showSuccess('Link copied to clipboard! (Share not supported on this device)');
+        } else {
+            this.showError('Could not copy link. Please copy manually.');
+        }
+        return copied;
+    }
+
+    // ========== ACCESS REQUESTS ==========
+    async getPendingRequests(linkId) {
+        if (!this.shareDB) return [];
         try {
-            await navigator.clipboard.writeText(text);
+            const snapshot = await this.shareDB.ref(`accessRequests/${linkId}`).once('value');
+            const data = snapshot.val() || {};
+            return Object.entries(data)
+                .filter(([phone, req]) => req.status === 'pending')
+                .map(([phone, req]) => ({ phone, ...req }));
+        } catch (error) {
+            console.error('Error fetching requests:', error);
+            return [];
+        }
+    }
+
+    async approveAccessRequest(linkId, requesterPhone) {
+        if (!this.shareDB) return false;
+        try {
+            const linkRef = this.shareDB.ref(`shareLinks/${linkId}`);
+            const linkSnapshot = await linkRef.once('value');
+            const linkData = linkSnapshot.val();
+            if (!linkData) return false;
+
+            const allowed = linkData.allowedPhones || [];
+            if (!allowed.includes(requesterPhone)) {
+                allowed.push(requesterPhone);
+                await linkRef.update({ allowedPhones: allowed });
+            }
+
+            const encodedRequester = this.encodePhone(requesterPhone);
+            await this.shareDB.ref(`sharedWithMe/${encodedRequester}/${linkId}`).set(true);
+
+            await this.shareDB.ref(`accessRequests/${linkId}/${this.encodePhone(requesterPhone)}`).remove();
+
+            if (this.secureLinks[linkId]) {
+                this.secureLinks[linkId].allowedPhones = allowed;
+            }
+
+            this.showSuccess(`Access granted to ${requesterPhone}`);
             return true;
         } catch (error) {
-            console.error('Copy failed:', error);
+            console.error('Approval error:', error);
+            this.showError('Failed to approve request');
             return false;
         }
     }
 
+    async denyAccessRequest(linkId, requesterPhone) {
+        if (!this.shareDB) return false;
+        try {
+            await this.shareDB.ref(`accessRequests/${linkId}/${this.encodePhone(requesterPhone)}`).remove();
+            this.showSuccess(`Access denied for ${requesterPhone}`);
+            return true;
+        } catch (error) {
+            console.error('Denial error:', error);
+            this.showError('Failed to deny request');
+            return false;
+        }
+    }
+
+    // ========== UI HELPERS ==========
     showSuccess(message) {
         const successEl = document.getElementById('shareSuccess');
         const messageEl = document.getElementById('successMessage');
@@ -1294,471 +2063,149 @@ togglePasswordField(show) {
         return div.innerHTML;
     }
 
-showSection(section) {
-    document.querySelectorAll('.share-nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    const navItem = document.querySelector(`.share-nav-item[data-section="${section}"]`);
-    if (navItem) navItem.classList.add('active');
-    
-    document.querySelectorAll('.share-section').forEach(el => {
-        el.classList.remove('active');
-    });
-    const target = document.getElementById(`${section}-section`);
-    if (target) target.classList.add('active');
-    
-    if (section === 'links') { 
-        // Only delete expired links (they are removed from local cache)
-        // No full database refetch – just re-render from cached data
-        this.deleteExpiredLinks().then(() => {
-            this.renderLinksList();
-        });
-    }
-    
-    // Refresh photo UI when showing create section
-    if (section === 'create') {
-        this.updatePhotoUI();
-    }
-}
-
-    prepareShareWithPhoto(photo) {
-        if (!photo) return;
-
-        // Store as pending until module is ready
-        if (!this.availablePhotos) {
-            this.pendingPhotoForShare = photo;
-            return;
-        }
-
-        this.applyPhotoToShare(photo);
-    }
-
-applyPhotoToShare(photo) {
-    if (!photo || !photo.id) return;
-
-    // Preserve any existing form data (title, text) if we're in create mode
-    // No need to clear them
-
-    // Ensure photo exists in availablePhotos
-    const existing = this.availablePhotos.find(p => p.id === photo.id);
-    if (!existing) {
-        this.availablePhotos.unshift(photo);
-    }
-
-    // Clear previous selection and select this photo
-    this.selectedPhotoIds.clear();
-    this.selectedPhotoIds.add(photo.id);
-
-    // Force refresh of both grid and preview
-    this.updatePhotoUI();
-
-    // Switch to 'create' section if not already there
-    if (this.currentSection !== 'create') {
-        this.showSection('create');
-    }
-
-    // Re-sync after a short delay
-    setTimeout(() => {
-        this.updatePhotoUI();
-    }, 100);
-}
-
-switchToPhotosModule() {
-    // Use the global app navigator if available
-    if (window.xDrive && typeof window.xDrive.navigateToModule === 'function') {
-        window.xDrive.navigateToModule('photos');
-    } else {
-        // Fallback: trigger click on the photos menu item
-        const photosMenuItem = document.querySelector('.navbar-menu .menu-item[data-page="photos"]');
-        if (photosMenuItem) photosMenuItem.click();
-    }
-}
-
-
-// ========== SHARE LINK METHOD (Web Share API with fallback) ==========
-async shareLink(url, title = 'Shared Content') {
-    // Check if Web Share API is supported
-    if (navigator.share) {
+    async copyToClipboard(text) {
         try {
-            await navigator.share({
-                title: title,
-                text: 'Check out this shared content!',
-                url: url
-            });
-            this.showSuccess('Shared successfully!');
+            await navigator.clipboard.writeText(text);
             return true;
         } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.error('Share failed:', error);
-                // Fallback to copy
-                return this.fallbackShareCopy(url);
-            }
+            console.error('Copy failed:', error);
             return false;
         }
-    } else {
-        // Fallback for desktop or unsupported browsers
-        return this.fallbackShareCopy(url);
-    }
-}
-
-// Fallback copy method for when Web Share API isn't available
-async fallbackShareCopy(url) {
-    const copied = await this.copyToClipboard(url);
-    if (copied) {
-        this.showSuccess('Link copied to clipboard! (Share not supported on this device)');
-    } else {
-        this.showError('Could not copy link. Please copy manually.');
-    }
-    return copied;
-}
-
-
-
-// Add this method to handle edit button click
-async editLink(linkId) {
-    const link = this.secureLinks[linkId];
-    if (!link) {
-        this.showError('Link not found');
-        return;
-    }
-    
-    // Check if link is editable
-    const now = new Date();
-    const isExpired = link.expiration && new Date(link.expiration) < now;
-    if (link.isDestroyed || isExpired || link.status === 'pending') {
-        this.showError('Cannot edit expired, destroyed, or paused links');
-        return;
-    }
-    
-    // Switch to create section
-    this.showSection('create');
-    
-    // Wait for DOM to settle
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Set edit mode BEFORE populating form
-    this.editMode = true;
-    this.currentEditLinkId = linkId;
-    this.setEditModeUI(true);
-    
-    // Populate form with link data
-    this.populateEditForm(link);
-    
-    // Scroll to form
-    document.getElementById('createLinkForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// Populate form with existing link data
-populateEditForm(link) {
-    // Title
-    const titleInput = document.getElementById('linkTitle');
-    if (titleInput) titleInput.value = link.title || '';
-    
-    // Text content
-    const contentTextarea = document.getElementById('linkContent');
-    if (contentTextarea) contentTextarea.value = link.textContent || '';
-    
-    // Password protection
-    const passwordToggle = document.getElementById('passwordProtectionToggle');
-    if (passwordToggle) {
-        passwordToggle.checked = link.hasPassword || false;
-        this.togglePasswordField(link.hasPassword || false);
-        if (link.hasPassword) {
-            const passwordInput = document.getElementById('linkPassword');
-            if (passwordInput) passwordInput.value = '';
-        }
-    }
-    
-    // View Once
-    const viewOnceToggle = document.getElementById('viewOnceToggle');
-    const secondsContainer = document.getElementById('viewOnceSecondsContainer');
-    const secondsSlider = document.getElementById('viewOnceSecondsSlider');
-    const secondsDisplay = document.getElementById('secondsValueDisplay');
-    
-    if (viewOnceToggle) {
-        viewOnceToggle.checked = link.viewOnce || false;
-        if (secondsContainer) secondsContainer.style.display = link.viewOnce ? 'block' : 'none';
-        if (secondsSlider && link.viewOnceSeconds) {
-            secondsSlider.value = link.viewOnceSeconds;
-            if (secondsDisplay) secondsDisplay.textContent = link.viewOnceSeconds;
-        } else if (secondsSlider) {
-            secondsSlider.value = 3;
-            if (secondsDisplay) secondsDisplay.textContent = '3';
-        }
-    }
-    
-    // Expiration
-    if (link.expiration) {
-        const expDate = new Date(link.expiration);
-        const year = expDate.getFullYear();
-        const month = String(expDate.getMonth() + 1).padStart(2, '0');
-        const day = String(expDate.getDate()).padStart(2, '0');
-        const hours = String(expDate.getHours()).padStart(2, '0');
-        const minutes = String(expDate.getMinutes()).padStart(2, '0');
-        const expLocal = `${year}-${month}-${day}T${hours}:${minutes}`;
-        const expirationInput = document.getElementById('expirationDate');
-        if (expirationInput) expirationInput.value = expLocal;
-    } else {
-        const defaultExp = new Date();
-        defaultExp.setDate(defaultExp.getDate() + 7);
-        const expirationInput = document.getElementById('expirationDate');
-        if (expirationInput) expirationInput.value = defaultExp.toISOString().slice(0, 16);
     }
 
-    // IMPORTANT FIX: Load photos properly
-    // Clear existing selections first
-    this.selectedPhotoIds.clear();
-    this.availablePhotos = [];
-    
-    if (link.photos && link.photos.length) {
-        // Copy photos with all required properties
-        this.availablePhotos = link.photos.map(photo => ({
-            id: photo.id,
-            name: photo.name || 'Untitled',
-            url: photo.url,
-            size: photo.size || 0,
-            date: photo.date || new Date().toISOString(),
-            description: photo.description || ''
-        }));
-        
-        // Select all photos from the link
-        for (const photo of this.availablePhotos) {
-            this.selectedPhotoIds.add(photo.id);
-        }
-    }
-    
-    // Force UI updates with a small delay to ensure DOM is ready
-    setTimeout(() => {
-        this.updatePhotoUI();
-        // Extra safety: re-render grid directly
-        this.renderPhotoSelectionGrid();
-    }, 50);
-}
-
-renderPhotoSelectionGrid() {
-    const gridContainer = document.getElementById('photoSelectionGrid');
-    if (!gridContainer) return;
-    
-    gridContainer.innerHTML = this.availablePhotos.map(photo => `
-        <div class="share-photo-card ${this.selectedPhotoIds.has(photo.id) ? 'selected' : ''}" data-photo-id="${photo.id}">
-            <div class="share-photo-thumbnail">
-                <img src="${photo.url}" alt="${this.escapeHtml(photo.name)}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23666%22%3E%3Cpath d=%22M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z%22/%3E%3C/svg%3E'">
-                <div class="share-photo-overlay">
-                    <input type="checkbox" class="share-photo-checkbox" ${this.selectedPhotoIds.has(photo.id) ? 'checked' : ''}>
-                </div>
-            </div>
-            <div class="share-photo-info">
-                <span class="share-photo-name">${this.escapeHtml(photo.name.substring(0, 20))}</span>
-            </div>
-        </div>
-    `).join('');
-    
-    // Add click handlers
-    gridContainer.querySelectorAll('.share-photo-card').forEach(card => {
-        card.addEventListener('click', (e) => {
-            if (e.target.type !== 'checkbox') {
-                const photoId = card.getAttribute('data-photo-id');
-                this.togglePhotoSelection(photoId);
-            }
+    showSection(section) {
+        document.querySelectorAll('.share-nav-item').forEach(item => {
+            item.classList.remove('active');
         });
-        const checkbox = card.querySelector('.share-photo-checkbox');
-        if (checkbox) {
-            checkbox.addEventListener('change', (e) => {
-                e.stopPropagation();
-                const photoId = card.getAttribute('data-photo-id');
-                if (checkbox.checked) {
-                    this.selectedPhotoIds.add(photoId);
-                } else {
-                    this.selectedPhotoIds.delete(photoId);
+        const navItem = document.querySelector(`.share-nav-item[data-section="${section}"]`);
+        if (navItem) navItem.classList.add('active');
+
+        document.querySelectorAll('.share-section').forEach(el => {
+            el.classList.remove('active');
+        });
+        const target = document.getElementById(`${section}-section`);
+        if (target) target.classList.add('active');
+
+        if (section === 'links') {
+            this.deleteExpiredLinks().then(() => {
+                this.renderLinksList();
+            });
+        }
+        if (section === 'shared-with-me') {
+            this.renderSharedWithMeLinks();
+        }
+        if (section === 'create') {
+            this.updatePhotoUI();
+        }
+    }
+
+    setupEventListeners() {
+        document.querySelectorAll('.share-nav-item').forEach(item => {
+            item.addEventListener('click', () => this.showSection(item.getAttribute('data-section')));
+        });
+        
+        document.getElementById('browsePhotosBtn')?.addEventListener('click', () => {
+            this.openPhotoLibraryForSharing();
+        });
+
+        document.getElementById('createLinkForm')?.addEventListener('submit', (e) => this.handleCreateLink(e));
+        document.getElementById('clearFormBtn')?.addEventListener('click', () => this.clearForm());
+        this.attachResultEvents();
+
+        document.getElementById('passwordProtectionToggle')?.addEventListener('change', (e) => this.togglePasswordField(e.target.checked));
+        document.getElementById('viewOnceToggle')?.addEventListener('change', (e) => {
+            const container = document.getElementById('viewOnceSecondsContainer');
+            if (container) container.style.display = e.target.checked ? 'block' : 'none';
+        });
+        const secondsSlider = document.getElementById('viewOnceSecondsSlider');
+        if (secondsSlider) {
+            secondsSlider.addEventListener('input', () => {
+                const display = document.getElementById('secondsValueDisplay');
+                if (display) display.textContent = secondsSlider.value;
+            });
+        }
+
+        document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                if (input) {
+                    const type = input.type === 'password' ? 'text' : 'password';
+                    input.type = type;
+                    const icon = btn.querySelector('i');
+                    if (icon) {
+                        icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+                    }
                 }
-                this.updatePhotoUI();
+            });
+        });
+
+        const watermarkToggle = document.getElementById('watermarkToggle');
+        const watermarkContainer = document.getElementById('watermarkTextContainer');
+        if (watermarkToggle && watermarkContainer) {
+            watermarkToggle.addEventListener('change', (e) => {
+                watermarkContainer.style.display = e.target.checked ? 'block' : 'none';
             });
         }
-    });
-}
 
-// Set UI to edit mode
-setEditModeUI(isEditing) {
-    const submitBtn = document.getElementById('createLinkSubmitBtn');
-    const formTitle = document.querySelector('#create-section .section-header h2');
-    const cancelEditBtn = document.getElementById('cancelEditBtn');
-    
-    if (isEditing) {
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-save"></i> Update Link';
-            submitBtn.classList.add('btn-edit-mode');
-        }
-        if (formTitle) formTitle.textContent = 'Edit Share Link';
-        
-        // Add cancel edit button if not exists
-        if (!cancelEditBtn) {
-            const formActions = document.querySelector('#createLinkForm .form-actions');
-            if (formActions) {
-                const cancelBtn = document.createElement('button');
-                cancelBtn.type = 'button';
-                cancelBtn.id = 'cancelEditBtn';
-                cancelBtn.className = 'btn btn-secondary';
-                cancelBtn.innerHTML = '<i class="fas fa-times"></i> Cancel Edit';
-                cancelBtn.addEventListener('click', () => this.cancelEdit());
-                formActions.appendChild(cancelBtn);
-            }
-        } else {
-            cancelEditBtn.style.display = 'inline-flex';
-        }
-    } else {
-        if (submitBtn) {
-            submitBtn.innerHTML = '<i class="fas fa-link"></i> Create Share Link';
-            submitBtn.classList.remove('btn-edit-mode');
-        }
-        if (formTitle) formTitle.textContent = 'Create Share Link';
-        if (cancelEditBtn) cancelEditBtn.style.display = 'none';
-        
-        // Clear form
-        this.clearForm();
-    }
-}
-
-cancelEdit() {
-    this.editMode = false;
-    this.currentEditLinkId = null;
-    this.setEditModeUI(false);
-    this.clearForm();
-    // Make sure photo grid is empty
-    this.availablePhotos = [];
-    this.selectedPhotoIds.clear();
-    this.updatePhotoUI();
-
-}
-
-// Update existing link (replace createShareLink for edit)
-async updateShareLink(linkId, title, textContent, photoIds, protectionType, password, expiration, viewOnce, viewOnceSeconds, status) {
-    const existingLink = this.secureLinks[linkId];
-    if (!existingLink) throw new Error('Link not found');
-    
-    let passwordHash = existingLink.passwordHash;
-    let hasPassword = existingLink.hasPassword;
-    
-    if (protectionType === 'password' && password) {
-        passwordHash = await this.hashPassword(password);
-        hasPassword = true;
-    } else if (protectionType === 'nopassword') {
-        passwordHash = null;
-        hasPassword = false;                 // ← explicitly remove password
-    }
-    
-    // Prepare photos array from selected photo IDs
-    const photos = [];
-    for (const photoId of photoIds) {
-        const photo = this.availablePhotos.find(p => p.id === photoId);
-        if (photo) {
-            photos.push({
-                id: photo.id,
-                name: photo.name,
-                url: photo.url,
-                size: photo.size,
-                date: photo.date,
-                description: photo.description || ''
+        const shareWithToggle = document.getElementById('shareWithToggle');
+        const shareWithContainer = document.getElementById('shareWithContainer');
+        if (shareWithToggle && shareWithContainer) {
+            shareWithToggle.addEventListener('change', (e) => {
+                shareWithContainer.style.display = e.target.checked ? 'block' : 'none';
             });
         }
-    }
-    
-    // If password protection is on but no new password provided, keep existing
-    
-    const updatedLinkData = {
-        ...existingLink,
-        title: title,
-        textContent: textContent || '',
-        photos: photos,
-        photoCount: photos.length,
-        passwordHash: passwordHash,
-        hasPassword: hasPassword,
-        expiration: expiration || null,
-        viewOnce: viewOnce,
-        viewOnceSeconds: viewOnce ? viewOnceSeconds : null,
-        status: status,
-        updatedAt: new Date().toISOString()
-    };
-    
-    // Save to local cache
-    this.secureLinks[linkId] = updatedLinkData;
-    
-    // Save to share database
-    await this.shareDB.ref(`shareLinks/${linkId}`).update({
-        title: title,
-        textContent: textContent || '',
-        photos: photos,
-        photoCount: photos.length,
-        passwordHash: passwordHash,
-        hasPassword: hasPassword,
-        expiration: expiration || null,
-        viewOnce: viewOnce,
-        viewOnceSeconds: viewOnce ? viewOnceSeconds : null,
-        status: status,
-        updatedAt: new Date().toISOString()
-    });
-    
-    return updatedLinkData;
-}
 
-// Called when the user clicks "Open Photo Library"
-async openPhotoLibraryForSharing() {
-    // If photos module exists and has a multi‑select mode
-    if (window.photosModule && typeof window.photosModule.selectMultiplePhotos === 'function') {
-        const selectedPhotos = await window.photosModule.selectMultiplePhotos();
-        if (selectedPhotos && selectedPhotos.length) {
-            this.addPhotosToShare(selectedPhotos);
+        const shareWithInput = document.getElementById('shareWithInput');
+        const shareWithStatus = document.getElementById('shareWithStatus');
+        if (shareWithInput && shareWithStatus) {
+            shareWithInput.addEventListener('input', () => {
+                const raw = shareWithInput.value.trim();
+                if (!raw) {
+                    shareWithStatus.innerHTML = '';
+                    shareWithStatus.className = 'phone-validator-status';
+                    return;
+                }
+                const numbers = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                const results = numbers.map(num => PhoneValidator.validatePhone(num));
+                const invalid = results.filter(r => !r.valid);
+                if (invalid.length === 0) {
+                    shareWithStatus.innerHTML = `<i class="fas fa-check-circle" style="color: #10b981;"></i> All numbers valid`;
+                    shareWithStatus.className = 'phone-validator-status valid';
+                } else {
+                    const invalidNumbers = numbers.filter((_, i) => !results[i].valid);
+                    const reasons = invalidNumbers.map(n => `${n} (${PhoneValidator.validatePhone(n).reason})`).join('; ');
+                    shareWithStatus.innerHTML = `<i class="fas fa-times-circle" style="color: #ef4444;"></i> Invalid: ${reasons}`;
+                    shareWithStatus.className = 'phone-validator-status invalid';
+                }
+            });
         }
-    } else {
-        // Fallback: navigate to photos module and use a global event
-        window.xDrive?.navigateToModule('photos');
-        // Listen for a custom event fired by photos module when sharing is done
-        window.addEventListener('photosSelectedForShare', (event) => {
-            if (event.detail?.photos) {
-                this.addPhotosToShare(event.detail.photos);
-            }
-        }, { once: true });
-    }
-}
 
-// Add multiple photos to the current share session
-addPhotosToShare(photos) {
-    for (const photo of photos) {
-        if (!this.availablePhotos.some(p => p.id === photo.id)) {
-            this.availablePhotos.unshift(photo);
+        this.setupExpirationLimit();
+        const defaultExpiration = new Date();
+        defaultExpiration.setDate(defaultExpiration.getDate() + 7);
+        const expirationInput = document.getElementById('expirationDate');
+        if (expirationInput && !expirationInput.value) {
+            expirationInput.value = defaultExpiration.toISOString().slice(0, 16);
         }
-        this.selectedPhotoIds.add(photo.id);
     }
-    this.updatePhotoUI();
-    this.showSuccess(`${photos.length} photo(s) added to share`);
-}
 
-// Add this method to the ShareModule class
-async refreshLinks() {
-    const container = document.getElementById('linksListContainer');
-    if (!container) return;
-
-    // Show loading indicator
-    container.innerHTML = `
-        <div class="loading-placeholder">
-            <span class="material-icons">sync</span>
-            <p>Loading your links...</p>
-        </div>
-    `;
-
-    try {
-        // Re-fetch links from the share database
-        await this.loadUserLinks();   // this updates this.secureLinks
-        this.renderLinksList();       // render the actual list
-    } catch (error) {
-        console.error('Error refreshing links:', error);
-        container.innerHTML = `
-            <div class="share-message error" style="display: flex;">
-                <span class="material-icons">error</span>
-                <span>Failed to load links. Please try again later.</span>
-            </div>
-        `;
+    setupExpirationLimit() {
+        const expirationInput = document.getElementById('expirationDate');
+        if (!expirationInput) return;
+        
+        const maxDate = new Date();
+        maxDate.setDate(maxDate.getDate() + 7);
+        expirationInput.max = maxDate.toISOString().slice(0, 16);
+        
+        const minDate = new Date();
+        minDate.setHours(0, 0, 0, 0);
+        expirationInput.min = minDate.toISOString().slice(0, 16);
+        
+        if (!expirationInput.value) {
+            expirationInput.value = maxDate.toISOString().slice(0, 16);
+        }
     }
-}
 }
 
 // Initialize

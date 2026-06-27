@@ -1,4 +1,3 @@
-
 class CredentialManager {
     constructor() {
         // ========== 1. CORE PROPERTIES ==========
@@ -16,11 +15,6 @@ class CredentialManager {
         this.isInitialized = false;
         this.pendingOperations = new Map();
         this.firebaseListeners = {};
-        
-        // ========== 5. TOTP PROPERTIES ==========
-        this.totpInterval = null;
-        this.currentTotpCodes = new Map();
-        this.totpRefreshTimer = null;
         
         // ========== 6. UI STATE PROPERTIES ==========
         this.currentPreviewFilter = 'all';
@@ -66,9 +60,6 @@ class CredentialManager {
         // Then load data from Firebase in background (this will sync and update)
         await this.initFirebaseSync();
         
-        // Start TOTP timer after everything is loaded
-        this.startTOTPTimer();
-
         this.updateFilterCount();
         
         this.isInitialized = true;
@@ -209,13 +200,13 @@ class CredentialManager {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-            if (!encodedEmail) return;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+            if (!encodedPhone) return;
 
             console.log('Setting up Firebase real-time listeners for credentials...');
 
             // Listen for credential data changes
-            const credRef = homeDb.db.ref(`userData/${encodedEmail}/credentialData`);
+            const credRef = homeDb.db.ref(`userData/${encodedPhone}/credentialData`);
             this.setupFirebaseListener('credentials', credRef);
 
             // Load initial data from Firebase
@@ -257,12 +248,12 @@ class CredentialManager {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+            if (!encodedPhone) return false;
 
             console.log('Loading credential data from Firebase...');
 
-            const ref = homeDb.db.ref(`userData/${encodedEmail}/credentialData`);
+            const ref = homeDb.db.ref(`userData/${encodedPhone}/credentialData`);
             const snapshot = await ref.once('value');
             const firebaseData = snapshot.val();
 
@@ -503,8 +494,8 @@ class CredentialManager {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+            if (!encodedPhone) return false;
 
             // Mark as pending operation
             this.pendingOperations.set('credential_sync', true);
@@ -535,7 +526,7 @@ class CredentialManager {
             };
 
             // Save to Firebase
-            const ref = homeDb.db.ref(`userData/${encodedEmail}/credentialData`);
+            const ref = homeDb.db.ref(`userData/${encodedPhone}/credentialData`);
             await ref.set(firebaseData);
 
             // Save to IndexedDB cache
@@ -605,8 +596,8 @@ class CredentialManager {
                 
                 for (const { rowData } of sortedRows) {
                     // Get row-level pending status
-                    const isRowPending = rowDataata.pending || false;
-                    const pendingAt = rowDataata.pendingAt || null;
+                    const isRowPending = rowData.pending || false;
+                    const pendingAt = rowData.pendingAt || null;
                     
                     // Apply the SAME pending status to ALL fields in the row
                     entries.push({ 
@@ -713,14 +704,14 @@ class CredentialManager {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+            if (!encodedPhone) return false;
 
             // Mark as pending operation
             this.pendingOperations.set(`credential_sync_${rowId}`, true);
 
             // Save to Firebase
-            const ref = homeDb.db.ref(`userData/${encodedEmail}/credentialData/${rowId}`);
+            const ref = homeDb.db.ref(`userData/${encodedPhone}/credentialData/${rowId}`);
             await ref.set(rowData);
 
             setTimeout(() => {
@@ -747,8 +738,8 @@ class CredentialManager {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+            if (!encodedPhone) return false;
 
             const credentialSet = this.getCredentialSet();
             const entries = credentialSet.entries || [];
@@ -778,11 +769,11 @@ class CredentialManager {
                     lastUpdated: new Date().toISOString()
                 };
                 
-                updates[`userData/${encodedEmail}/credentialData/${rowId}`] = rowData;
+                updates[`userData/${encodedPhone}/credentialData/${rowId}`] = rowData;
             }
             
             // Store metadata
-            updates[`userData/${encodedEmail}/credentialData/_metadata`] = {
+            updates[`userData/${encodedPhone}/credentialData/_metadata`] = {
                 totalRows: rows,
                 lastSync: new Date().toISOString(),
                 version: Date.now()
@@ -850,8 +841,8 @@ class CredentialManager {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return;
             
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-            if (!encodedEmail) return;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+            if (!encodedPhone) return;
             
             const credentialSet = this.getCredentialSet();
             const entries = credentialSet.entries || [];
@@ -881,20 +872,20 @@ class CredentialManager {
                     lastUpdated: new Date().toISOString()
                 };
                 
-                updates[`userData/${encodedEmail}/credentialData/${rowId}`] = rowData;
+                updates[`userData/${encodedPhone}/credentialData/${rowId}`] = rowData;
             }
             
             // Mark rows that were deleted for removal
             for (const deletedRowIndex of deletedRowIndices) {
                 const oldRowId = `credential_${deletedRowIndex}`;
-                deletions[`userData/${encodedEmail}/credentialData/${oldRowId}`] = null;
+                deletions[`userData/${encodedPhone}/credentialData/${oldRowId}`] = null;
             }
             
             // Combine updates and deletions
             const allUpdates = { ...updates, ...deletions };
             
             // Store metadata
-            allUpdates[`userData/${encodedEmail}/credentialData/_metadata`] = {
+            allUpdates[`userData/${encodedPhone}/credentialData/_metadata`] = {
                 totalRows: rowsCount,
                 lastSync: new Date().toISOString(),
                 version: Date.now()
@@ -935,8 +926,8 @@ class CredentialManager {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return;
             
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-            if (!encodedEmail) return;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+            if (!encodedPhone) return;
             
             const credentialSet = this.getCredentialSet();
             const entries = credentialSet.entries || [];
@@ -964,21 +955,21 @@ class CredentialManager {
                     lastUpdated: new Date().toISOString()
                 };
                 
-                updates[`userData/${encodedEmail}/credentialData/${rowId}`] = rowData;
+                updates[`userData/${encodedPhone}/credentialData/${rowId}`] = rowData;
             }
             
             // Mark the deleted row for removal (if it existed)
             const deletedRowId = `credential_${deletedRowIndex}`;
-            updates[`userData/${encodedEmail}/credentialData/${deletedRowId}`] = null;
+            updates[`userData/${encodedPhone}/credentialData/${deletedRowId}`] = null;
             
             // Also remove any rows beyond the new count (if any)
             const oldRowCount = rowsCount + 1;
             for (let i = rowsCount; i < oldRowCount; i++) {
-                updates[`userData/${encodedEmail}/credentialData/credential_${i}`] = null;
+                updates[`userData/${encodedPhone}/credentialData/credential_${i}`] = null;
             }
             
             // Store metadata
-            updates[`userData/${encodedEmail}/credentialData/_metadata`] = {
+            updates[`userData/${encodedPhone}/credentialData/_metadata`] = {
                 totalRows: rowsCount,
                 lastSync: new Date().toISOString(),
                 version: Date.now()
@@ -1046,204 +1037,204 @@ class CredentialManager {
     }
 
 
-deleteRow(rowIndex) {
-    const credentialSet = this.getCredentialSet();
-    const entries = credentialSet.entries || [];
-    const startIndex = rowIndex * 6;
-    const rowEntries = entries.slice(startIndex, startIndex + 6);
-    
-    // Check if row has data
-    const hasData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
-    
-    if (!hasData) {
-        this.showNotification('Cannot delete empty row', 'warning');
-        return;
-    }
-    
-    // Remove any existing confirmation bar
-    this.removeDeleteConfirmationBar();
-    
-    // Get the service name for the confirmation message
-    const serviceName = rowEntries[0]?.value || 'Untitled';
-    const rowNumber = rowIndex + 1;
-    
-    // Store the row index to delete
-    this.pendingDeleteRowIndex = rowIndex;
-    
-    // Create and insert confirmation bar at the top (below search/filter)
-    const confirmationBar = this.createDeleteConfirmationBar(rowIndex, serviceName, rowNumber);
-    
-    // Insert after the search/filter section, before preview container
-    const previewSection = document.querySelector('.preview-section');
-    const previewContainer = document.getElementById('previewContainer');
-    
-    if (previewSection && previewContainer) {
-        // Insert before the preview container
-        previewSection.insertBefore(confirmationBar, previewContainer);
-    } else {
-        // Fallback: insert at the top of preview container
-        const container = document.getElementById('previewContainer');
-        if (container && container.parentNode) {
-            container.parentNode.insertBefore(confirmationBar, container);
-        }
-    }
-    
-    // Scroll to the confirmation bar
-    confirmationBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-// Create inline confirmation bar (shown at top below search/filter)
-createDeleteConfirmationBar(rowIndex, serviceName, rowNumber) {
-    const div = document.createElement('div');
-    div.className = 'delete-confirmation-bar';
-    div.setAttribute('data-row-index', rowIndex);
-    div.style.cssText = `
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        border-radius: 8px;
-        margin: 0 0 16px 0;
-        padding: 12px 16px;
-        animation: slideDown 0.2s ease;
-    `;
-    
-    div.innerHTML = `
-        <div style="display: flex; justify-content: space-between; gap: 12px;flex-direction: column;">
-            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                <div style="
-                    width: 32px;
-                    height: 32px;
-                    background: rgba(239, 68, 68, 0.15);
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                ">
-                    <span class="material-icons" style="color: var(--danger, #ef4444); font-size: 18px;">warning</span>
-                </div>
-                <div>
-                    <div style="color: var(--f-label); font-size: 0.85rem; font-weight: 500;">
-                        Delete "<strong style="color: var(--danger, #ef4444);">${this.escapeHtml(serviceName)}</strong>" (Row ${rowNumber})?
-                    </div>
-                    <div style="color: var(--text-secondary, #a0a0b0); font-size: 0.7rem; margin-top: 2px;">
-                        All data in this row will be permanently deleted.
-                    </div>
-                </div>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 10px; justify-content: flex-end;">
-                <button class="delete-confirm-btn btn btn-danger">
-                    <i class="fas fa-trash"></i> Delete
-                </button>
-                <button class="delete-cancel-btn btn btn-secondary">
-                    Cancel
-                </button>
-            </div>
-        </div>
-        <div class="delete-confirm-error" style="
-            color: var(--danger, #ef4444);
-            font-size: 0.65rem;
-            margin-top: 10px;
-            display: none;
-        "></div>
-    `;
-    
-    // Add event listeners
-    const confirmBtn = div.querySelector('.delete-confirm-btn');
-    const cancelBtn = div.querySelector('.delete-cancel-btn');
-    const errorDiv = div.querySelector('.delete-confirm-error');
-    
-    confirmBtn.addEventListener('click', () => {
-        this.deleteRowConfirmed(rowIndex);
-    });
-    
-    cancelBtn.addEventListener('click', () => {
-        this.removeDeleteConfirmationBar();
-        this.pendingDeleteRowIndex = null;
-    });
-    
-    return div;
-}
-
-// Remove delete confirmation bar
-removeDeleteConfirmationBar() {
-    const existingBar = document.querySelector('.delete-confirmation-bar');
-    if (existingBar) {
-        // Add fade out animation before removal
-        existingBar.style.animation = 'fadeOut 0.15s ease';
-        setTimeout(() => {
-            if (existingBar.parentNode) {
-                existingBar.remove();
-            }
-        }, 150);
-    }
-}
-
-async deleteRowConfirmed(rowIndex) {
-    const credentialIndex = this.credentials.findIndex(cr => cr.id === 1);
-    if (credentialIndex !== -1) {
-        const entries = this.credentials[credentialIndex].entries;
+    deleteRow(rowIndex) {
+        const credentialSet = this.getCredentialSet();
+        const entries = credentialSet.entries || [];
         const startIndex = rowIndex * 6;
+        const rowEntries = entries.slice(startIndex, startIndex + 6);
         
-        entries.splice(startIndex, 6);
+        // Check if row has data
+        const hasData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
         
-        entries.forEach((entry, index) => {
-            entry.originalIndex = index;
-            entry.lineNumber = Math.floor(index / 6) + 1;
+        if (!hasData) {
+            this.showNotification('Cannot delete empty row', 'warning');
+            return;
+        }
+        
+        // Remove any existing confirmation bar
+        this.removeDeleteConfirmationBar();
+        
+        // Get the service name for the confirmation message
+        const serviceName = rowEntries[0]?.value || 'Untitled';
+        const rowNumber = rowIndex + 1;
+        
+        // Store the row index to delete
+        this.pendingDeleteRowIndex = rowIndex;
+        
+        // Create and insert confirmation bar at the top (below search/filter)
+        const confirmationBar = this.createDeleteConfirmationBar(rowIndex, serviceName, rowNumber);
+        
+        // Insert after the search/filter section, before preview container
+        const previewSection = document.querySelector('.preview-section');
+        const previewContainer = document.getElementById('previewContainer');
+        
+        if (previewSection && previewContainer) {
+            // Insert before the preview container
+            previewSection.insertBefore(confirmationBar, previewContainer);
+        } else {
+            // Fallback: insert at the top of preview container
+            const container = document.getElementById('previewContainer');
+            if (container && container.parentNode) {
+                container.parentNode.insertBefore(confirmationBar, container);
+            }
+        }
+        
+        // Scroll to the confirmation bar
+        confirmationBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Create inline confirmation bar (shown at top below search/filter)
+    createDeleteConfirmationBar(rowIndex, serviceName, rowNumber) {
+        const div = document.createElement('div');
+        div.className = 'delete-confirmation-bar';
+        div.setAttribute('data-row-index', rowIndex);
+        div.style.cssText = `
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            margin: 0 0 16px 0;
+            padding: 12px 16px;
+            animation: slideDown 0.2s ease;
+        `;
+        
+        div.innerHTML = `
+            <div style="display: flex; justify-content: space-between; gap: 12px;flex-direction: column;">
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                    <div style="
+                        width: 32px;
+                        height: 32px;
+                        background: rgba(239, 68, 68, 0.15);
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    ">
+                        <i class="fas fa-exclamation-triangle" style="color: var(--danger, #ef4444); font-size: 16px;"></i>
+                    </div>
+                    <div>
+                        <div style="color: var(--f-label); font-size: 0.85rem; font-weight: 500;">
+                            Delete "<strong style="color: var(--danger, #ef4444);">${this.escapeHtml(serviceName)}</strong>" (Row ${rowNumber})?
+                        </div>
+                        <div style="color: var(--text-secondary, #a0a0b0); font-size: 0.7rem; margin-top: 2px;">
+                            All data in this row will be permanently deleted.
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; justify-content: flex-end;">
+                    <button class="delete-confirm-btn btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button class="delete-cancel-btn btn btn-secondary">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+            <div class="delete-confirm-error" style="
+                color: var(--danger, #ef4444);
+                font-size: 0.65rem;
+                margin-top: 10px;
+                display: none;
+            "></div>
+        `;
+        
+        // Add event listeners
+        const confirmBtn = div.querySelector('.delete-confirm-btn');
+        const cancelBtn = div.querySelector('.delete-cancel-btn');
+        const errorDiv = div.querySelector('.delete-confirm-error');
+        
+        confirmBtn.addEventListener('click', () => {
+            this.deleteRowConfirmed(rowIndex);
         });
         
-        this.credentials[credentialIndex].lastUpdated = 'Just now';
+        cancelBtn.addEventListener('click', () => {
+            this.removeDeleteConfirmationBar();
+            this.pendingDeleteRowIndex = null;
+        });
         
-        await this.saveToStorage();
-        await this.syncAfterSingleRowDeletion(rowIndex);
-        
-        // Remove confirmation bar before updating preview
-        this.removeDeleteConfirmationBar();
-        this.pendingDeleteRowIndex = null;
-        this.updatePreview();
-        this.showNotification(`Row ${rowIndex + 1} deleted successfully`, 'success');
+        return div;
     }
-}
 
-addDeleteStyles() {
-    if (!document.getElementById('delete-styles')) {
-        const style = document.createElement('style');
-        style.id = 'delete-styles';
-        style.textContent = `
-            @keyframes slideDown {
-                from {
-                    opacity: 0;
-                    transform: translateY(-10px);
+    // Remove delete confirmation bar
+    removeDeleteConfirmationBar() {
+        const existingBar = document.querySelector('.delete-confirmation-bar');
+        if (existingBar) {
+            // Add fade out animation before removal
+            existingBar.style.animation = 'fadeOut 0.15s ease';
+            setTimeout(() => {
+                if (existingBar.parentNode) {
+                    existingBar.remove();
                 }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
-            
-            @keyframes fadeOut {
-                from {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-                to {
-                    opacity: 0;
-                    transform: translateY(-10px);
-                }
-            }
-            
-            @keyframes shake {
-                0%, 100% { transform: translateX(0); }
-                25% { transform: translateX(-4px); }
-                75% { transform: translateX(4px); }
-            }
-            
-            .delete-confirmation-bar {
-                animation: slideDown 0.2s ease;
-            }
-        `;
-        document.head.appendChild(style);
+            }, 150);
+        }
     }
-}
+
+    async deleteRowConfirmed(rowIndex) {
+        const credentialIndex = this.credentials.findIndex(cr => cr.id === 1);
+        if (credentialIndex !== -1) {
+            const entries = this.credentials[credentialIndex].entries;
+            const startIndex = rowIndex * 6;
+            
+            entries.splice(startIndex, 6);
+            
+            entries.forEach((entry, index) => {
+                entry.originalIndex = index;
+                entry.lineNumber = Math.floor(index / 6) + 1;
+            });
+            
+            this.credentials[credentialIndex].lastUpdated = 'Just now';
+            
+            await this.saveToStorage();
+            await this.syncAfterSingleRowDeletion(rowIndex);
+            
+            // Remove confirmation bar before updating preview
+            this.removeDeleteConfirmationBar();
+            this.pendingDeleteRowIndex = null;
+            this.updatePreview();
+            this.showNotification(`Row ${rowIndex + 1} deleted successfully`, 'success');
+        }
+    }
+
+    addDeleteStyles() {
+        if (!document.getElementById('delete-styles')) {
+            const style = document.createElement('style');
+            style.id = 'delete-styles';
+            style.textContent = `
+                @keyframes slideDown {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                
+                @keyframes fadeOut {
+                    from {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                    to {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                }
+                
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    25% { transform: translateX(-4px); }
+                    75% { transform: translateX(4px); }
+                }
+                
+                .delete-confirmation-bar {
+                    animation: slideDown 0.2s ease;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
 
 
     // ========== UI RENDERING ==========
@@ -1274,7 +1265,7 @@ addDeleteStyles() {
         return `
             <div class="module-card">
                 <div class="module-icon" style="color: var(--primary);">
-                    <span class="material-icons">vpn_key</span>
+                    <i class="fas fa-key"></i>
                 </div>
                 <div class="module-info">
                     <div class="module-title">Credential Manager</div>
@@ -1298,166 +1289,101 @@ addDeleteStyles() {
     // ========== ADD THIS METHOD TO GET THE FORM HTML ==========
     getCredentialFormHTML() {
         return `
-            <div class="settings-card" id="credentialFormCard" style="margin-bottom: 8px;">
-                <div class="card-title" style="color: var(--text-secondary);">
-                    <span class="material-icons">${this.isEditing ? 'edit_note' : 'add_circle'}</span>
-                    ${this.isEditing ? 'Edit Credential' : 'Add New Credential'}
+            <div class="section-card" id="credentialFormCard" style="margin-bottom: 8px;">
+                <div class="section-card-header">
+                    <div class="section-card-title">
+                        <i class="fas ${this.isEditing ? 'fa-edit' : 'fa-plus-circle'}"></i>
+                        <span>${this.isEditing ? 'Edit Credential' : 'Add New Credential'}</span>
+                    </div>
+                    <span class="section-card-badge">
+                        <i class="fas ${this.isEditing ? 'fa-pen' : 'fa-plus'}"></i>
+                        ${this.isEditing ? 'Editing' : 'New'}
+                    </span>
                     ${this.isEditing ? `
-                        <button onclick="credentialManager.cancelEdit()" class="btn btn-secondary" style="margin-left: auto;">
+                        <button id="credentialFormCancelBtn" class="btn btn-secondary" style="margin-left: auto;">
                             Cancel
                         </button>
                     ` : ''}
                 </div>
-                
-                <form class="settings-form" id="credentialForm">
-                    <div class="form-row">
-                        <!-- 1. Service Tag -->
-                        <div class="form-group">
-                            <label class="form-label" for="formServiceTag">
-                                Service Tag <span style="color: var(--danger);">*</span>
-                            </label>
-                            <input type="text" 
-                                id="formServiceTag"
-                                class="form-input" style="color: var(--text-secondary);"
-                                placeholder="e.g., Google, GitHub, Facebook"
-                                autocomplete="off">
-                        </div>
-                        
-                        <!-- 2. Username/ID -->
-                        <div class="form-group">
-                            <label class="form-label" for="formUsername">
-                                Username / Email
-                            </label>
-                            <input type="text" 
-                                id="formUsername"
-                                class="form-input" style="color: var(--text-secondary);"
-                                placeholder="username@example.com"
-                                autocomplete="off">
-                        </div>
-                        
-                        <!-- 3. Password -->
-                        <div class="form-group">
-                            <label class="form-label" for="formPassword">
-                                Password
-                            </label>
-                            <div class="password-input-group">
-                                <input type="password" 
-                                    id="formPassword"
-                                    class="form-input" style="color: var(--text-secondary);"
-                                    placeholder="Enter password"
-                                    autocomplete="off">
-                                <button type="button" class="toggle-password-btn" data-target="formPassword">
-                                    <span class="material-icons">visibility</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- MORE OPTIONS CHECKBOX -->
-                    <div style="margin: 4px 0; padding-top: 8px; border-top: 1px solid var(--border);">
-                        <span 
-                            id="moreOptionsToggle"
-                            style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px;"
-                            onclick="credentialManager.toggleMoreOptions()">
-                            <span class="material-icons" style="font-size: 16px;">expand_more</span>
-                            More Options (2FA & Custom Field)
-                        </span>
-                    </div>
-                    
-                    <!-- COLLAPSIBLE EXTRA FIELDS -->
-                    <div id="extraFieldsContainer" style="display: none;">
+                <div class="section-card-content">
+                    <form class="settings-form" id="credentialForm">
+                        <!-- Form fields go here (unchanged) -->
                         <div class="form-row">
-                            <!-- 4. 2FA Secret -->
                             <div class="form-group">
-                                <label class="form-label" for="form2FA">
-                                    2FA Secret
+                                <label class="form-label" for="formServiceTag">
+                                    Service Tag <span style="color: var(--danger);">*</span>
                                 </label>
+                                <input type="text" id="formServiceTag" class="form-input" placeholder="e.g., Google, GitHub" autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="formUsername">Username / Email</label>
+                                <input type="text" id="formUsername" class="form-input" placeholder="username@example.com" autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="formPassword">Password</label>
                                 <div class="password-input-group">
-                                    <input type="password" 
-                                        id="form2FA"
-                                        class="form-input" style="color: var(--text-secondary);"
-                                        placeholder="TOTP secret key (Base32)"
-                                        autocomplete="off">
-                                    <button type="button" class="toggle-password-btn" data-target="form2FA">
-                                        <span class="material-icons">visibility</span>
+                                    <input type="password" id="formPassword" class="form-input" placeholder="Enter password" autocomplete="off">
+                                    <button type="button" class="toggle-password-btn" data-target="formPassword">
+                                        <i class="fas fa-eye"></i>
                                     </button>
                                 </div>
-                                <div id="form2FAStatus" class="form-help"></div>
-                            </div>
-                            
-                            <!-- 5. CUSTOM FIELD WITH INLINE EDIT -->
-                            <div class="form-group">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <label class="form-label" for="formCustomField" id="customFieldLabel" style="margin-bottom: 0;">
-                                        Custom Field
-                                    </label>
-                                    <button type="button" 
-                                        class="inline-edit-label-btn" 
-                                        data-field="customField"
-                                        style="
-                                            background: transparent;
-                                            border: none;
-                                            cursor: pointer;
-                                            color: var(--text-secondary);
-                                            font-size: 0.65rem;
-                                            display: inline-flex;
-                                            align-items: center;
-                                            gap: 4px;
-                                            padding: 2px 6px;
-                                            border-radius: 4px;
-                                            transition: all 0.2s;
-                                        ">
-                                        <span class="material-icons" style="font-size: 12px;">edit</span>
-                                    </button>
-                                </div>
-                                <input type="text" 
-                                    id="formCustomField"
-                                    class="form-input" style="color: var(--text-secondary);"
-                                    placeholder="Custom data"
-                                    autocomplete="off">
-                                <div class="form-help">To add custom label, click 'Edit' icon*</div>
-                                <div class="inline-label-edit-container" data-field="customField" style="display: none; margin-top: 8px;"></div>
-                            </div>
-
-                            <!-- 6. Note -->
-                            <div class="form-group">
-                                <label class="form-label" for="formNote">
-                                    Note
-                                </label>
-                                <input type="text" 
-                                    id="formNote"
-                                    class="form-input" style="color: var(--text-secondary);"
-                                    placeholder="Short note (max 24 chars)"
-                                    maxlength="24"
-                                    autocomplete="off">
-                                <div class="form-help" id="noteCharCount">0 / 24 characters</div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Form Actions -->
-                    <div class="form-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
-                        <button type="button" onclick="credentialManager.clearForm()" class="btn btn-secondary">
-                            <i class="fas fa-broom"></i> Clear
-                        </button>
-
-                        <button id="credentialFormAddBtn" 
-                            type="button"
-                            onclick="credentialManager.submitAdd()" 
-                            class="btn btn-primary"
-                            style="${this.isEditing ? 'display: none;' : ''}">
-                            <i class="fas fa-save"></i> Save Credential
-                        </button>
                         
-                        <button id="credentialFormUpdateBtn" 
-                            type="button"
-                            onclick="credentialManager.submitUpdate()" 
-                            class="btn btn-primary"
-                            style="${this.isEditing ? '' : 'display: none;'}">
-                            <i class="fas fa-pen"></i> Update Credential
-                        </button>
-                    </div>
-                </form>
+                        <!-- More Options Toggle -->
+                        <div style="margin: 4px 0; padding-top: 8px; border-top: 1px solid var(--border);">
+                            <span id="moreOptionsToggle" style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px;" onclick="credentialManager.toggleMoreOptions()">
+                                <i class="fas fa-chevron-down" style="font-size: 14px;"></i>
+                                More Options (2FA & Custom Field)
+                            </span>
+                        </div>
+                        
+                        <!-- Extra Fields (collapsible) -->
+                        <div id="extraFieldsContainer" style="display: none;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="form2FA">2FA Secret</label>
+                                    <div class="password-input-group">
+                                        <input type="password" id="form2FA" class="form-input" placeholder="TOTP secret key (Base32)" autocomplete="off">
+                                        <button type="button" class="toggle-password-btn" data-target="form2FA">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                    <div id="form2FAStatus" class="form-help"></div>
+                                </div>
+                                <div class="form-group">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <label class="form-label" for="formCustomField" id="customFieldLabel" style="margin-bottom: 0;">Custom Field</label>
+                                        <button type="button" class="inline-edit-label-btn" data-field="customField" style="background: transparent; border: none; cursor: pointer; color: var(--text-secondary); font-size: 0.65rem; display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px;">
+                                            <i class="fas fa-edit" style="font-size: 12px;"></i>
+                                        </button>
+                                    </div>
+                                    <input type="text" id="formCustomField" class="form-input" placeholder="Custom data" autocomplete="off">
+                                    <div class="form-help">To add custom label, click 'Edit' icon*</div>
+                                    <div class="inline-label-edit-container" data-field="customField" style="display: none; margin-top: 8px;"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="formNote">Note</label>
+                                    <input type="text" id="formNote" class="form-input" placeholder="Short note (max 24 chars)" maxlength="24" autocomplete="off">
+                                    <div class="form-help" id="noteCharCount">0 / 24 characters</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="form-actions">
+                            <button type="button" id="credentialFormClearBtn" class="btn btn-secondary">
+                                <i class="fas fa-broom"></i> Clear
+                            </button>
+                            <button type="button" id="credentialFormAddBtn" class="btn btn-primary" style="${this.isEditing ? 'display: none;' : ''}">
+                                <i class="fas fa-save"></i> Save Credential
+                            </button>
+                            <button type="button" id="credentialFormUpdateBtn" class="btn btn-primary" style="${this.isEditing ? '' : 'display: none;'}">
+                                <i class="fas fa-pen"></i> Update Credential
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         `;
     }
@@ -1472,13 +1398,13 @@ addDeleteStyles() {
             if (isVisible) {
                 extraContainer.style.display = 'none';
                 // Optionally update icon
-                const icon = document.querySelector('#moreOptionsToggle .material-icons');
-                if (icon) icon.textContent = 'expand_more';
+                const icon = document.querySelector('#moreOptionsToggle .fas');
+                if (icon) icon.className = 'fas fa-chevron-down';
             } else {
                 extraContainer.style.display = 'block';
                 extraContainer.style.animation = 'fadeSlideDown 0.2s ease';
-                const icon = document.querySelector('#moreOptionsToggle .material-icons');
-                if (icon) icon.textContent = 'expand_less';
+                const icon = document.querySelector('#moreOptionsToggle .fas');
+                if (icon) icon.className = 'fas fa-chevron-up';
             }
         }
     }
@@ -1568,7 +1494,7 @@ addDeleteStyles() {
                             gap: 4px;
                             transition: all 0.2s;
                         ">
-                            <span class="material-icons" style="font-size: 12px;">check</span>
+                            <i class="fas fa-check" style="font-size: 12px;"></i>
                         </button>
                         
                         <button class="inline-label-cancel-btn" style="
@@ -1584,7 +1510,7 @@ addDeleteStyles() {
                             gap: 4px;
                             transition: all 0.2s;
                         ">
-                            <span class="material-icons" style="font-size: 12px;">close</span>
+                            <i class="fas fa-times" style="font-size: 12px;"></i>
                         </button>
                     </div>
                 </div>
@@ -1670,265 +1596,220 @@ addDeleteStyles() {
     }
 
 
-// Update field label in preview section
-updatePreviewFieldLabel(fieldId, newLabel) {
-    // Store the custom label for future renders
-    this[`${fieldId}Label`] = newLabel;
-    // Refresh preview to show updated label
-    this.updatePreview();
-}
+    // Update field label in preview section
+    updatePreviewFieldLabel(fieldId, newLabel) {
+        // Store the custom label for future renders
+        this[`${fieldId}Label`] = newLabel;
+        // Refresh preview to show updated label
+        this.updatePreview();
+    }
 
-// Get custom field label (with fallback)
-getCustomFieldLabel() {
-    return localStorage.getItem('customField_label') || 'Custom Field';
-}
+    // Get custom field label (with fallback)
+    getCustomFieldLabel() {
+        return localStorage.getItem('customField_label') || 'Custom Field';
+    }
 
 
 
-// ========== UPDATE credentialHTML TO INCLUDE THE FORM ==========
+    // ========== UPDATE credentialHTML TO INCLUDE THE FORM ==========
 
-// Add this method to the CredentialManager class
-toggleCredentialForm() {
-    const formCard = document.querySelector('.settings-card');
-    const toggleBtn = document.getElementById('toggleCredentialFormBtn');
-    
-    if (formCard) {
-        const isHidden = formCard.style.display === 'none';
+    // Add this method to the CredentialManager class
+    toggleCredentialForm() {
+        const formCard = document.getElementById('credentialFormCard');
+        const toggleBtn = document.getElementById('toggleCredentialFormBtn');
         
-        if (isHidden) {
-            formCard.style.display = '';
-            if (toggleBtn) {
-                toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Hide Form';
-                toggleBtn.classList.remove('btn-primary');
-                toggleBtn.classList.add('btn-primary');
+        if (formCard) {
+            const isHidden = formCard.style.display === 'none';
+            if (isHidden) {
+                formCard.style.display = '';
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Hide Form';
+                }
+            } else {
+                formCard.style.display = 'none';
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Add Credential';
+                }
             }
+        }
+    }
+
+    // Update credentialHTML method - replace the existing one
+    credentialHTML() {
+        const credentialSet = this.getCredentialSet();
+        const entries = credentialSet.entries || [];
+        const allHeaders = ['Service Tag', 'Username/ID', 'Password', 'Note', '2FA', 'Custom Field'];
+        
+        const rowsNeeded = Math.ceil(entries.length / 6);
+        const needsVerticalScroll = rowsNeeded >= 5;
+        const tableHeight = needsVerticalScroll ? '220px' : 'auto';
+        
+        return `
+            <div class="table-wrapper" style="
+                width: 100%;
+                max-width: 100%;
+                background: var(--panel);
+                margin: 8px 0;
+            ">
+                <!-- Credential Input Form -->
+                ${this.getCredentialFormHTML()}
+            </div>
+        `;
+    }
+
+
+    // ========== ADD FORM HANDLER METHODS ==========
+
+    // Get form data
+    getFormData() {
+        return {
+            serviceTag: document.getElementById('formServiceTag')?.value || '',
+            username: document.getElementById('formUsername')?.value || '',
+            password: document.getElementById('formPassword')?.value || '',
+            note: document.getElementById('formNote')?.value || '',
+            twofa: document.getElementById('form2FA')?.value || '',
+            customField: document.getElementById('formCustomField')?.value || ''
+        };
+    }
+
+    // Clear form
+    clearForm() {
+        const serviceTag = document.getElementById('formServiceTag');
+        const username = document.getElementById('formUsername');
+        const password = document.getElementById('formPassword');
+        const note = document.getElementById('formNote');
+        const twofa = document.getElementById('form2FA');
+        const customField = document.getElementById('formCustomField');
+        
+        if (serviceTag) serviceTag.value = '';
+        if (username) username.value = '';
+        if (password) {
+            password.value = '';
+            password.type = 'password';
+            const toggleBtn = document.querySelector('.toggle-password-btn[data-target="formPassword"]');
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('i');
+                if (icon) icon.className = 'fas fa-eye';
+            }
+        }
+        if (note) {
+            note.value = '';
+            const counterSpan = document.getElementById('noteCharCount');
+            if (counterSpan) counterSpan.innerHTML = '0 / 24 characters';
+        }
+        if (twofa) twofa.value = '';
+        if (customField) customField.value = '';
+        
+        const statusDiv = document.getElementById('form2FAStatus');
+        if (statusDiv) statusDiv.innerHTML = '';
+        
+        if (serviceTag) serviceTag.focus();
+    }
+
+    // Toggle password visibility in form
+    toggleFormPassword() {
+        const passwordField = document.getElementById('formPassword');
+        const button = document.querySelector('.credential-input-form button[onclick="credentialManager.toggleFormPassword()"] i');
+        
+        if (passwordField.type === 'password') {
+            passwordField.type = 'text';
+            if (button) button.className = 'fas fa-eye-slash';
         } else {
-            formCard.style.display = 'none';
-            if (toggleBtn) {
-                toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Add Credential';
-                toggleBtn.classList.remove('btn-primary');
-                toggleBtn.classList.add('btn-primary');
-            }
+            passwordField.type = 'password';
+            if (button) button.className = 'fas fa-eye';
         }
     }
-}
 
-// Update credentialHTML method - replace the existing one
-credentialHTML() {
-    const credentialSet = this.getCredentialSet();
-    const entries = credentialSet.entries || [];
-    const allHeaders = ['Service Tag', 'Username/ID', 'Password', 'Note', '2FA', 'Custom Field'];
-    
-    const rowsNeeded = Math.ceil(entries.length / 6);
-    const needsVerticalScroll = rowsNeeded >= 5;
-    const tableHeight = needsVerticalScroll ? '220px' : 'auto';
-    
-    return `
-        <div class="table-wrapper" style="
-            width: 100%;
-            max-width: 100%;
-            background: var(--panel);
-            margin: 8px 0;
-        ">
-            <!-- Credential Input Form -->
-            ${this.getCredentialFormHTML()}
-        </div>
-    `;
-}
-
-
-// ========== ADD FORM HANDLER METHODS ==========
-
-// Get form data
-getFormData() {
-    return {
-        serviceTag: document.getElementById('formServiceTag')?.value || '',
-        username: document.getElementById('formUsername')?.value || '',
-        password: document.getElementById('formPassword')?.value || '',
-        note: document.getElementById('formNote')?.value || '',
-        twofa: document.getElementById('form2FA')?.value || '',
-        customField: document.getElementById('formCustomField')?.value || ''
-    };
-}
-
-// Clear form
-clearForm() {
-    const serviceTag = document.getElementById('formServiceTag');
-    const username = document.getElementById('formUsername');
-    const password = document.getElementById('formPassword');
-    const note = document.getElementById('formNote');
-    const twofa = document.getElementById('form2FA');
-    const customField = document.getElementById('formCustomField');
-    
-    if (serviceTag) serviceTag.value = '';
-    if (username) username.value = '';
-    if (password) {
-        password.value = '';
-        password.type = 'password';
-        const toggleBtn = document.querySelector('.toggle-password-btn[data-target="formPassword"]');
-        if (toggleBtn) {
-            const icon = toggleBtn.querySelector('.material-icons');
-            if (icon) icon.textContent = 'visibility';
+    // Submit form (Add or Update)
+    submitForm() {
+        // Get current form values directly from DOM
+        const formData = {
+            serviceTag: document.getElementById('formServiceTag')?.value || '',
+            username: document.getElementById('formUsername')?.value || '',
+            password: document.getElementById('formPassword')?.value || '',
+            note: document.getElementById('formNote')?.value || '',
+            twofa: document.getElementById('form2FA')?.value || '',
+            customField: document.getElementById('formCustomField')?.value || ''
+        };
+        
+        // Validate required fields
+        if (!formData.serviceTag.trim()) {
+            this.showNotification('Please enter a service tag', 'warning');
+            document.getElementById('formServiceTag')?.focus();
+            return;
+        }
+        
+        if (this.isEditing && this.editingRowIndex !== null) {
+            // UPDATE existing credential
+            this.updateCredentialRow(this.editingRowIndex, formData);
+            this.showNotification(`Updated "${formData.serviceTag}"`, 'success');
+            this.cancelEdit(); // This will reset form and exit edit mode
+        } else {
+            // ADD new credential
+            this.addCredentialForm(formData);
+            this.showNotification(`Added "${formData.serviceTag}"`, 'success');
+            this.clearForm(); // Clear form for next entry
         }
     }
-    if (note) {
-        note.value = '';
-        const counterSpan = document.getElementById('noteCharCount');
-        if (counterSpan) counterSpan.innerHTML = '0 / 24 characters';
-    }
-    if (twofa) twofa.value = '';
-    if (customField) customField.value = '';
-    
-    const statusDiv = document.getElementById('form2FAStatus');
-    if (statusDiv) statusDiv.innerHTML = '';
-    
-    if (serviceTag) serviceTag.focus();
-}
 
-// Toggle password visibility in form
-toggleFormPassword() {
-    const passwordField = document.getElementById('formPassword');
-    const button = document.querySelector('.credential-input-form button[onclick="credentialManager.toggleFormPassword()"] i');
-    
-    if (passwordField.type === 'password') {
-        passwordField.type = 'text';
-        if (button) button.className = 'fas fa-eye-slash';
-    } else {
-        passwordField.type = 'password';
-        if (button) button.className = 'fas fa-eye';
-    }
-}
-
-// Submit form (Add or Update)
-submitForm() {
-    // Get current form values directly from DOM
-    const formData = {
-        serviceTag: document.getElementById('formServiceTag')?.value || '',
-        username: document.getElementById('formUsername')?.value || '',
-        password: document.getElementById('formPassword')?.value || '',
-        note: document.getElementById('formNote')?.value || '',
-        twofa: document.getElementById('form2FA')?.value || '',
-        customField: document.getElementById('formCustomField')?.value || ''
-    };
-    
-    // Validate required fields
-    if (!formData.serviceTag.trim()) {
-        this.showNotification('Please enter a service tag', 'warning');
-        document.getElementById('formServiceTag')?.focus();
-        return;
-    }
-    
-    if (this.isEditing && this.editingRowIndex !== null) {
-        // UPDATE existing credential
-        this.updateCredentialRow(this.editingRowIndex, formData);
-        this.showNotification(`Updated "${formData.serviceTag}"`, 'success');
-        this.cancelEdit(); // This will reset form and exit edit mode
-    } else {
+    // Submit Add (for adding new credential)
+    submitAdd() {
+        // Get current form values directly from DOM
+        const formData = {
+            serviceTag: document.getElementById('formServiceTag')?.value || '',
+            username: document.getElementById('formUsername')?.value || '',
+            password: document.getElementById('formPassword')?.value || '',
+            note: document.getElementById('formNote')?.value || '',
+            twofa: document.getElementById('form2FA')?.value || '',
+            customField: document.getElementById('formCustomField')?.value || ''
+        };
+        
+        // Validate required fields
+        if (!formData.serviceTag.trim()) {
+            this.showNotification('Please enter a service tag', 'warning');
+            document.getElementById('formServiceTag')?.focus();
+            return;
+        }
+        
         // ADD new credential
         this.addCredentialForm(formData);
         this.showNotification(`Added "${formData.serviceTag}"`, 'success');
         this.clearForm(); // Clear form for next entry
     }
-}
 
-// Submit Add (for adding new credential)
-submitAdd() {
-    // Get current form values directly from DOM
-    const formData = {
-        serviceTag: document.getElementById('formServiceTag')?.value || '',
-        username: document.getElementById('formUsername')?.value || '',
-        password: document.getElementById('formPassword')?.value || '',
-        note: document.getElementById('formNote')?.value || '',
-        twofa: document.getElementById('form2FA')?.value || '',
-        customField: document.getElementById('formCustomField')?.value || ''
-    };
-    
-    // Validate required fields
-    if (!formData.serviceTag.trim()) {
-        this.showNotification('Please enter a service tag', 'warning');
-        document.getElementById('formServiceTag')?.focus();
-        return;
+    // Submit Update (for updating existing credential)
+    submitUpdate() {
+        // Get current form values directly from DOM
+        const formData = {
+            serviceTag: document.getElementById('formServiceTag')?.value || '',
+            username: document.getElementById('formUsername')?.value || '',
+            password: document.getElementById('formPassword')?.value || '',
+            note: document.getElementById('formNote')?.value || '',
+            twofa: document.getElementById('form2FA')?.value || '',
+            customField: document.getElementById('formCustomField')?.value || ''
+        };
+        
+        // Validate required fields
+        if (!formData.serviceTag.trim()) {
+            this.showNotification('Please enter a service tag', 'warning');
+            document.getElementById('formServiceTag')?.focus();
+            return;
+        }
+        
+        if (this.isEditing && this.editingRowIndex !== null) {
+            // UPDATE existing credential
+            this.updateCredentialRow(this.editingRowIndex, formData);
+            this.showNotification(`Updated "${formData.serviceTag}"`, 'success');
+            this.cancelEdit(); // This will reset form and exit edit mode
+        } else {
+            this.showNotification('No credential selected for update', 'warning');
+        }
     }
-    
-    // ADD new credential
-    this.addCredentialForm(formData);
-    this.showNotification(`Added "${formData.serviceTag}"`, 'success');
-    this.clearForm(); // Clear form for next entry
-}
 
-// Submit Update (for updating existing credential)
-submitUpdate() {
-    // Get current form values directly from DOM
-    const formData = {
-        serviceTag: document.getElementById('formServiceTag')?.value || '',
-        username: document.getElementById('formUsername')?.value || '',
-        password: document.getElementById('formPassword')?.value || '',
-        note: document.getElementById('formNote')?.value || '',
-        twofa: document.getElementById('form2FA')?.value || '',
-        customField: document.getElementById('formCustomField')?.value || ''
-    };
-    
-    // Validate required fields
-    if (!formData.serviceTag.trim()) {
-        this.showNotification('Please enter a service tag', 'warning');
-        document.getElementById('formServiceTag')?.focus();
-        return;
-    }
-    
-    if (this.isEditing && this.editingRowIndex !== null) {
-        // UPDATE existing credential
-        this.updateCredentialRow(this.editingRowIndex, formData);
-        this.showNotification(`Updated "${formData.serviceTag}"`, 'success');
-        this.cancelEdit(); // This will reset form and exit edit mode
-    } else {
-        this.showNotification('No credential selected for update', 'warning');
-    }
-}
-
-// Add credential from form data - NOW STORES CUSTOM LABEL
-addCredentialForm(formData) {
-    const credentialSet = this.getCredentialSet();
-    const entries = credentialSet.entries || [];
-    
-    // Truncate note to 24 characters
-    const noteValue = formData.note ? formData.note.substring(0, 24) : '';
-    
-    // Add warning if truncated
-    if (formData.note && formData.note.length > 24) {
-        this.showNotification('Note was truncated to 24 characters', 'warning');
-    }
-    
-    // Get custom field label from form (or use default)
-    const customFieldLabel = document.getElementById('customFieldLabel')?.textContent.trim() || 'Custom Field';
-    
-    const startIndex = entries.length;
-    const newRowNumber = Math.floor(startIndex / 6) + 1;
-    
-    // Field order: 0:Service, 1:Username, 2:Password, 3:2FA, 4:customField, 5:Note
-    const newEntries = [
-        { value: formData.serviceTag, display: formData.serviceTag, pending: false, pendingAt: null, isEmpty: !formData.serviceTag, isWhitespaceOnly: false, originalIndex: startIndex, lineNumber: newRowNumber },
-        { value: formData.username, display: formData.username, pending: false, pendingAt: null, isEmpty: !formData.username, isWhitespaceOnly: false, originalIndex: startIndex + 1, lineNumber: newRowNumber },
-        { value: formData.password, display: formData.password, pending: false, pendingAt: null, isEmpty: !formData.password, isWhitespaceOnly: false, originalIndex: startIndex + 2, lineNumber: newRowNumber },
-        { value: formData.twofa, display: formData.twofa, pending: false, pendingAt: null, isEmpty: !formData.twofa, isWhitespaceOnly: false, originalIndex: startIndex + 3, lineNumber: newRowNumber },
-        { value: formData.customField, display: formData.customField, pending: false, pendingAt: null, isEmpty: !formData.customField, isWhitespaceOnly: false, originalIndex: startIndex + 4, lineNumber: newRowNumber, customLabel: customFieldLabel || 'Custom Field' }, // ADD custom label
-        { value: noteValue, display: noteValue, pending: false, pendingAt: null, isEmpty: !noteValue, isWhitespaceOnly: false, originalIndex: startIndex + 5, lineNumber: newRowNumber }
-    ];
-    
-    entries.push(...newEntries);
-    
-    this.updateCredentials({ entries: entries, lastUpdated: 'Just now' });
-    this.updatePreview();
-    
-    const newRowIndex = Math.floor(startIndex / 6);
-    setTimeout(() => this.syncRowToFirebase(newRowIndex), 100);
-}
-
-// Update existing credential row - NOW PRESERVES CUSTOM LABEL
-updateCredentialRow(rowIndex, formData) {
-    const credentialIndex = this.credentials.findIndex(cr => cr.id === 1);
-    if (credentialIndex !== -1) {
-        const entries = this.credentials[credentialIndex].entries;
-        const startIndex = rowIndex * 6;
+    // Add credential from form data - NOW STORES CUSTOM LABEL
+    addCredentialForm(formData) {
+        const credentialSet = this.getCredentialSet();
+        const entries = credentialSet.entries || [];
         
         // Truncate note to 24 characters
         const noteValue = formData.note ? formData.note.substring(0, 24) : '';
@@ -1938,146 +1819,173 @@ updateCredentialRow(rowIndex, formData) {
             this.showNotification('Note was truncated to 24 characters', 'warning');
         }
         
-        // Get custom field label (preserve existing or use current form value)
-        const existingCustomEntry = entries[startIndex + 4];
-        const customFieldLabel = document.getElementById('customFieldLabel')?.textContent.trim() || 
-                                 existingCustomEntry?.customLabel || 
-                                 'Custom Field';
+        // Get custom field label from form (or use default)
+        const customFieldLabel = document.getElementById('customFieldLabel')?.textContent.trim() || 'Custom Field';
+        
+        const startIndex = entries.length;
+        const newRowNumber = Math.floor(startIndex / 6) + 1;
+        
+        // Field order: 0:Service, 1:Username, 2:Password, 3:2FA, 4:customField, 5:Note
+        const newEntries = [
+            { value: formData.serviceTag, display: formData.serviceTag, pending: false, pendingAt: null, isEmpty: !formData.serviceTag, isWhitespaceOnly: false, originalIndex: startIndex, lineNumber: newRowNumber },
+            { value: formData.username, display: formData.username, pending: false, pendingAt: null, isEmpty: !formData.username, isWhitespaceOnly: false, originalIndex: startIndex + 1, lineNumber: newRowNumber },
+            { value: formData.password, display: formData.password, pending: false, pendingAt: null, isEmpty: !formData.password, isWhitespaceOnly: false, originalIndex: startIndex + 2, lineNumber: newRowNumber },
+            { value: formData.twofa, display: formData.twofa, pending: false, pendingAt: null, isEmpty: !formData.twofa, isWhitespaceOnly: false, originalIndex: startIndex + 3, lineNumber: newRowNumber },
+            { value: formData.customField, display: formData.customField, pending: false, pendingAt: null, isEmpty: !formData.customField, isWhitespaceOnly: false, originalIndex: startIndex + 4, lineNumber: newRowNumber, customLabel: customFieldLabel || 'Custom Field' }, // ADD custom label
+            { value: noteValue, display: noteValue, pending: false, pendingAt: null, isEmpty: !noteValue, isWhitespaceOnly: false, originalIndex: startIndex + 5, lineNumber: newRowNumber }
+        ];
+        
+        entries.push(...newEntries);
+        
+        this.updateCredentials({ entries: entries, lastUpdated: 'Just now' });
+        this.updatePreview();
+        
+        const newRowIndex = Math.floor(startIndex / 6);
+        setTimeout(() => this.syncRowToFirebase(newRowIndex), 100);
+    }
 
-        if (startIndex + 5 < entries.length) {
-            entries[startIndex].value = formData.serviceTag;
-            entries[startIndex].display = formData.serviceTag;
-            entries[startIndex].isEmpty = !formData.serviceTag;
+    // Update existing credential row - NOW PRESERVES CUSTOM LABEL
+    updateCredentialRow(rowIndex, formData) {
+        const credentialIndex = this.credentials.findIndex(cr => cr.id === 1);
+        if (credentialIndex !== -1) {
+            const entries = this.credentials[credentialIndex].entries;
+            const startIndex = rowIndex * 6;
             
-            entries[startIndex + 1].value = formData.username;
-            entries[startIndex + 1].display = formData.username;
-            entries[startIndex + 1].isEmpty = !formData.username;
+            // Truncate note to 24 characters
+            const noteValue = formData.note ? formData.note.substring(0, 24) : '';
             
-            entries[startIndex + 2].value = formData.password;
-            entries[startIndex + 2].display = formData.password;
-            entries[startIndex + 2].isEmpty = !formData.password;
-            
-            entries[startIndex + 3].value = formData.twofa;
-            entries[startIndex + 3].display = formData.twofa;
-            entries[startIndex + 3].isEmpty = !formData.twofa;
-            
-            entries[startIndex + 4].value = formData.customField;
-            entries[startIndex + 4].display = formData.customField;
-            entries[startIndex + 4].isEmpty = !formData.customField;
-            entries[startIndex + 4].customLabel = customFieldLabel || 'Custom Field'; // PRESERVE custom label
-            
-            entries[startIndex + 5].value = noteValue;
-            entries[startIndex + 5].display = noteValue;
-            entries[startIndex + 5].isEmpty = !noteValue;
-            
-            const allFieldsFilled = formData.serviceTag && formData.username && formData.password;
-            if (allFieldsFilled) {
-                for (let i = 0; i < 6; i++) {
-                    if (entries[startIndex + i]) {
-                        entries[startIndex + i].pending = false;
-                        entries[startIndex + i].pendingAt = null;
-                    }
-                }
+            // Add warning if truncated
+            if (formData.note && formData.note.length > 24) {
+                this.showNotification('Note was truncated to 24 characters', 'warning');
             }
             
-            this.credentials[credentialIndex].lastUpdated = 'Just now';
-            this.saveToStorage();
-            this.updatePreview();
-            setTimeout(() => this.syncRowToFirebase(rowIndex), 100);
+            // Get custom field label (preserve existing or use current form value)
+            const existingCustomEntry = entries[startIndex + 4];
+            const customFieldLabel = document.getElementById('customFieldLabel')?.textContent.trim() || 
+                                    existingCustomEntry?.customLabel || 
+                                    'Custom Field';
+
+            if (startIndex + 5 < entries.length) {
+                entries[startIndex].value = formData.serviceTag;
+                entries[startIndex].display = formData.serviceTag;
+                entries[startIndex].isEmpty = !formData.serviceTag;
+                
+                entries[startIndex + 1].value = formData.username;
+                entries[startIndex + 1].display = formData.username;
+                entries[startIndex + 1].isEmpty = !formData.username;
+                
+                entries[startIndex + 2].value = formData.password;
+                entries[startIndex + 2].display = formData.password;
+                entries[startIndex + 2].isEmpty = !formData.password;
+                
+                entries[startIndex + 3].value = formData.twofa;
+                entries[startIndex + 3].display = formData.twofa;
+                entries[startIndex + 3].isEmpty = !formData.twofa;
+                
+                entries[startIndex + 4].value = formData.customField;
+                entries[startIndex + 4].display = formData.customField;
+                entries[startIndex + 4].isEmpty = !formData.customField;
+                entries[startIndex + 4].customLabel = customFieldLabel || 'Custom Field'; // PRESERVE custom label
+                
+                entries[startIndex + 5].value = noteValue;
+                entries[startIndex + 5].display = noteValue;
+                entries[startIndex + 5].isEmpty = !noteValue;
+                
+                const allFieldsFilled = formData.serviceTag && formData.username && formData.password;
+                if (allFieldsFilled) {
+                    for (let i = 0; i < 6; i++) {
+                        if (entries[startIndex + i]) {
+                            entries[startIndex + i].pending = false;
+                            entries[startIndex + i].pendingAt = null;
+                        }
+                    }
+                }
+                
+                this.credentials[credentialIndex].lastUpdated = 'Just now';
+                this.saveToStorage();
+                this.updatePreview();
+                setTimeout(() => this.syncRowToFirebase(rowIndex), 100);
+            }
         }
     }
-}
 
-// Edit credential (called from table row)
-editCredential(rowIndex) {
-    const credentialSet = this.getCredentialSet();
-    const entries = credentialSet.entries || [];
-    const startIndex = rowIndex * 6;
-    
-    if (startIndex + 5 < entries.length) {
-        // Set editing state
-        this.isEditing = true;
-        this.editingRowIndex = rowIndex;
+    // Edit credential (called from table row)
+    editCredential(rowIndex) {
+        const credentialSet = this.getCredentialSet();
+        const entries = credentialSet.entries || [];
+        const startIndex = rowIndex * 6;
         
-        // Populate currentFormData with existing values
-        this.currentFormData = {
-            serviceTag: entries[startIndex]?.value || '',
-            username: entries[startIndex + 1]?.value || '',
-            password: entries[startIndex + 2]?.value || '',
-            twofa: entries[startIndex + 3]?.value || '',
-            customField: entries[startIndex + 4]?.value || '',
-            note: entries[startIndex + 5]?.value || ''
-        };
-        
-        // Update the form UI without re-rendering entire container
-        this.updateFormToEditMode();
-        
-        // Scroll to form
-        const form = document.querySelector('.settings-card');
-        if (form) {
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (startIndex + 5 < entries.length) {
+            // Set editing state
+            this.isEditing = true;
+            this.editingRowIndex = rowIndex;
+            
+            // Populate currentFormData with existing values
+            this.currentFormData = {
+                serviceTag: entries[startIndex]?.value || '',
+                username: entries[startIndex + 1]?.value || '',
+                password: entries[startIndex + 2]?.value || '',
+                twofa: entries[startIndex + 3]?.value || '',
+                customField: entries[startIndex + 4]?.value || '',
+                note: entries[startIndex + 5]?.value || ''
+            };
+            
+            // Update the form UI without re-rendering entire container
+            this.updateFormToEditMode();
+
+            // Scroll to form using the new ID
+            const form = document.getElementById('credentialFormCard');
+            if (form) {
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            
+            // Focus on service tag field
+            const serviceTagField = document.getElementById('formServiceTag');
+            if (serviceTagField) {
+                serviceTagField.focus();
+            }
+            
+            this.showNotification(`Editing "${this.currentFormData.serviceTag || 'credential'}"`, 'info');
         }
-        
-        // Focus on service tag field
-        const serviceTagField = document.getElementById('formServiceTag');
-        if (serviceTagField) {
-            serviceTagField.focus();
-        }
-        
-        this.showNotification(`Editing "${this.currentFormData.serviceTag || 'credential'}"`, 'info');
     }
-}
 
 
-// Cancel edit mode
-cancelEdit() {
-    this.isEditing = false;
-    this.editingRowIndex = null;
-    this.currentFormData = {
-        serviceTag: '',
-        username: '',
-        password: '',
-        note: '',
-        twofa: '',
-        customField: ''
-    };
-    
-    // Update just the form section back to add mode
-    const formContainer = document.querySelector('.settings-card');
-    if (formContainer) {
-        const parent = formContainer.parentNode;
-        const newFormHTML = this.getCredentialFormHTML();
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = newFormHTML;
-        const newForm = tempDiv.firstElementChild;
-        parent.replaceChild(newForm, formContainer);
-        this.attachFormEventListeners();
+    // Cancel edit mode
+    cancelEdit() {
+        this.isEditing = false;
+        this.editingRowIndex = null;
+        this.currentFormData = { serviceTag: '', username: '', password: '', note: '', twofa: '', customField: '' };
         
-        // Ensure form stays visible after cancel (don't hide it)
-        const updatedForm = document.querySelector('.settings-card');
-        if (updatedForm) {
-            updatedForm.style.display = '';
-        }
-        
-        // Update toggle button if needed
-        const toggleBtn = document.getElementById('toggleCredentialFormBtn');
-        if (toggleBtn && toggleBtn.innerHTML.includes('Show')) {
-            toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Hide Form';
-            toggleBtn.classList.remove('btn-secondary');
-            toggleBtn.classList.add('btn-primary');
-        }
-    } else {
-        // Fallback to full re-render
-        const container = document.getElementById('credentialContainer');
-        if (container) {
-            container.innerHTML = this.getManagerHTML();
-            this.attachEventListeners();
+        const formContainer = document.getElementById('credentialFormCard');
+        if (formContainer) {
+            const parent = formContainer.parentNode;
+            const newFormHTML = this.getCredentialFormHTML();
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = newFormHTML;
+            const newForm = tempDiv.firstElementChild;
+            parent.replaceChild(newForm, formContainer);
             this.attachFormEventListeners();
+            
+            // Ensure the card is visible
+            const updatedForm = document.getElementById('credentialFormCard');
+            if (updatedForm) updatedForm.style.display = '';
+            
+            // Update toggle button
+            const toggleBtn = document.getElementById('toggleCredentialFormBtn');
+            if (toggleBtn && toggleBtn.innerHTML.includes('Show')) {
+                toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Hide Form';
+            }
+        } else {
+            // Fallback full re-render
+            const container = document.getElementById('credentialContainer');
+            if (container) {
+                container.innerHTML = this.getManagerHTML();
+                this.attachEventListeners();
+                this.attachFormEventListeners();
+            }
         }
+        this.showNotification('Edit cancelled', 'info');
     }
-    
-    this.showNotification('Edit cancelled', 'info');
-}
 
 attachFormEventListeners() {
     const form = document.getElementById('credentialForm');
@@ -2097,7 +2005,7 @@ attachFormEventListeners() {
         });
     }
     
-    // Note field character counter
+    // Note field character counter (unchanged)
     const noteField = document.getElementById('formNote');
     if (noteField) {
         const updateCharCount = () => {
@@ -2117,7 +2025,7 @@ attachFormEventListeners() {
         updateCharCount();
     }
     
-    // Password visibility toggles
+    // Password visibility toggles (unchanged)
     document.querySelectorAll('.toggle-password-btn').forEach(btn => {
         btn.removeEventListener('click', this.handlePasswordToggle);
         btn.addEventListener('click', (e) => {
@@ -2126,7 +2034,7 @@ attachFormEventListeners() {
         });
     });
     
-    // ADD THIS: Inline label edit buttons
+    // Inline label edit buttons (unchanged)
     document.querySelectorAll('.inline-edit-label-btn').forEach(btn => {
         btn.removeEventListener('click', this.handleInlineLabelEdit);
         btn.addEventListener('click', (e) => {
@@ -2135,7 +2043,7 @@ attachFormEventListeners() {
         });
     });
     
-    // Add/Update buttons
+    // Add button – using ID
     const addBtn = document.getElementById('credentialFormAddBtn');
     if (addBtn) {
         const newAddBtn = addBtn.cloneNode(true);
@@ -2147,6 +2055,7 @@ attachFormEventListeners() {
         newAddBtn.style.display = this.isEditing ? 'none' : 'inline-flex';
     }
     
+    // Update button – using ID
     const updateBtn = document.getElementById('credentialFormUpdateBtn');
     if (updateBtn) {
         const newUpdateBtn = updateBtn.cloneNode(true);
@@ -2158,8 +2067,8 @@ attachFormEventListeners() {
         newUpdateBtn.style.display = this.isEditing ? 'inline-flex' : 'none';
     }
     
-    // Cancel button
-    const cancelBtn = document.querySelector('.settings-card .btn-secondary[onclick*="cancelEdit"]');
+    // Cancel button – using ID
+    const cancelBtn = document.getElementById('credentialFormCancelBtn');
     if (cancelBtn) {
         const newCancelBtn = cancelBtn.cloneNode(true);
         cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
@@ -2169,8 +2078,8 @@ attachFormEventListeners() {
         };
     }
     
-    // Clear button
-    const clearBtn = document.querySelector('.settings-card .btn-secondary[onclick*="clearForm"]');
+    // Clear button – using ID
+    const clearBtn = document.getElementById('credentialFormClearBtn');
     if (clearBtn) {
         const newClearBtn = clearBtn.cloneNode(true);
         clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
@@ -2179,271 +2088,252 @@ attachFormEventListeners() {
             this.clearForm();
         };
     }
-    
-    // 2FA validation
-    const twofaField = document.getElementById('form2FA');
-    if (twofaField) {
-        twofaField.addEventListener('input', (e) => {
-            const statusDiv = document.getElementById('form2FAStatus');
-            if (statusDiv) {
-                const isValid = this.validateTOTPSecret(e.target.value);
-                if (e.target.value) {
-                    statusDiv.innerHTML = isValid ? 
-                        '<span style="color: var(--primary);">✓ Valid TOTP secret</span>' : 
-                        '<span style="color: var(--danger);">✗ Invalid TOTP secret format</span>';
-                } else {
-                    statusDiv.innerHTML = '';
-                }
-            }
-        });
+}
+
+    // Toggle password visibility for form fields
+    toggleFormPasswordVisibility(inputId, button) {
+        const input = document.getElementById(inputId);
+        const icon = button.querySelector('i');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'fas fa-eye';
+        }
     }
-}
 
-
-// Toggle password visibility for form fields
-toggleFormPasswordVisibility(inputId, button) {
-    const input = document.getElementById(inputId);
-    const icon = button.querySelector('.material-icons');
-    
-    if (input.type === 'password') {
-        input.type = 'text';
-        icon.textContent = 'visibility_off';
-    } else {
-        input.type = 'password';
-        icon.textContent = 'visibility';
+    // Update password strength indicator (optional)
+    updatePasswordStrengthIndicator(password) {
+        // You can implement password strength indicator if desired
+        // This is optional and can be expanded
+        if (!password) return;
+        
+        // Simple strength calculation
+        let strength = 0;
+        if (password.length >= 8) strength++;
+        if (/[a-z]/.test(password)) strength++;
+        if (/[A-Z]/.test(password)) strength++;
+        if (/\d/.test(password)) strength++;
+        if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
+        
+        // You could add a strength indicator element to show this
     }
-}
 
-// Update password strength indicator (optional)
-updatePasswordStrengthIndicator(password) {
-    // You can implement password strength indicator if desired
-    // This is optional and can be expanded
-    if (!password) return;
-    
-    // Simple strength calculation
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (/[a-z]/.test(password)) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/\d/.test(password)) strength++;
-    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
-    
-    // You could add a strength indicator element to show this
-}
-
-getPreviewSectionHTML() {
-    return `
-        <div class="preview-section" style="margin-top: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <h3 style="margin: 0; color: var(--text); display: flex; align-items: center; gap: 8px; font-size: 0.96rem;">
-                        <i class="fas fa-display" style="color: var(--active); font-size: 0.8rem;"></i>
-                        Preview
-                    </h3>
-                    <button id="togglePasswordVisibility" style="
-                        background: transparent;
-                        border: 1px solid var(--active);
-                        color: var(--active);
-                        padding: 4px 6px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 0.65rem;
-                        display: flex;
-                        align-items: center;
-                        gap: 4px;
-                        transition: all 0.2s;
-                    " onmouseover="this.style.backgroundColor='rgba(56,189,248,0.1)'"
-                    onmouseout="this.style.backgroundColor='transparent'">
-                        <i class="fas fa-eye" style="font-size: 0.65rem;"></i> Show Passwords
-                    </button>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <span style="font-size: 0.65rem; color: var(--muted); display: flex; align-items: center; gap: 4px;">
-                        <i class="fas fa-circle" style="color: var(--primary); font-size: 0.48rem;"></i> Active
-                    </span>
-                    <span style="font-size: 0.65rem; color: var(--muted); display: flex; align-items: center; gap: 4px;">
-                        <i class="fas fa-circle" style="color: var(--danger); font-size: 0.48rem;"></i> Pending
-                    </span>
-                </div>
-            </div>
-            
-            <!-- Search and Filter Bar - UPDATED with search count -->
-            <div class="preview-actions" style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 12px;
-                flex-wrap: wrap;
-                gap: 12px;
-            ">
-                <!-- Search Input with Result Count - Matching notes module -->
-                <div class="preview-search" style="
-                    flex: 1;
-                    min-width: 200px;
-                    position: relative;
-                    background: var(--card-bg);
-                    border: 1px solid var(--border);
-                    border-radius: 8px;
-                    padding: 4px 8px;
-                    display: flex;
-                    align-items: center;
-                    transition: all 0.3s;
-                ">
-                    <i class="fas fa-search" style="
-                        color: var(--text-secondary);
-                        font-size: 0.85rem;
-                        margin-right: 8px;
-                    "></i>
-                    <input type="text" 
-                        id="previewSearchInput" 
-                        placeholder="Search in preview..." 
-                        style="
-                            flex: 1;
+    getPreviewSectionHTML() {
+        return `
+            <div class="preview-section" style="margin-top: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <h3 style="margin: 0; color: var(--text); display: flex; align-items: center; gap: 8px; font-size: 0.96rem;">
+                            <i class="fas fa-display" style="color: var(--active); font-size: 0.8rem;"></i>
+                            Preview
+                        </h3>
+                        <button id="togglePasswordVisibility" style="
                             background: transparent;
-                            border: none;
-                            color: var(--text-primary);
-                            font-size: 0.8rem;
-                            padding: 4px 0;
-                            outline: none;
-                            width: 100%;
-                        "
-                        oninput="credentialManager.handlePreviewSearch()">
-                    <!-- Search Results Count Badge -->
-                    <div id="searchResultsCount" class="search-results-count" style="
-                        display: none;
-                        align-items: center;
-                        gap: 6px;
-                        margin-left: 8px;
-                        padding-left: 8px;
-                        border-left: 1px solid var(--border);
-                        color: var(--text-secondary);
-                        font-size: 0.65rem;
-                        font-weight: 500;
-                        white-space: nowrap;
-                    ">
-                        <span id="searchResultCountValue">0</span>
-                        <span>results</span>
-                        <button id="clearSearchBtn" class="btn-clear-search" style="
-                            background: transparent;
-                            border: none;
-                            color: var(--danger);
+                            border: 1px solid var(--active);
+                            color: var(--active);
+                            padding: 4px 6px;
+                            border-radius: 4px;
                             cursor: pointer;
-                            padding: 2px 4px;
-                            font-size: 0.7rem;
-                            transition: all 0.2s;
+                            font-size: 0.65rem;
                             display: flex;
                             align-items: center;
-                            justify-content: center;
-                            border-radius: 4px;
-                        " title="Clear search">
-                            <i class="fas fa-times"></i>
+                            gap: 4px;
+                            transition: all 0.2s;
+                        " onmouseover="this.style.backgroundColor='rgba(56,189,248,0.1)'"
+                        onmouseout="this.style.backgroundColor='transparent'">
+                            <i class="fas fa-eye" style="font-size: 0.65rem;"></i> Show Passwords
                         </button>
                     </div>
-                </div>
-
-                <!-- Filter Icons - Matching notes filter style -->
-                <div class="preview-filter-container" style="
-                    display: flex;
-                    gap: 4px;
-                    background: transparent;
-                    border: none;
-                    padding: 4px;
-                    margin: 0;
-                ">
-                    <button id="previewFilterAll" 
-                            class="preview-filter-btn active"
-                            onclick="credentialManager.setPreviewFilter('all')"
-                            style="
-                                width: 28px;
-                                height: 28px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                border-radius: 6px;
-                                background: var(--active);
-                                border: none;
-                                color: var(--primary);
-                                cursor: pointer;
-                                transition: all 0.3s;
-                                font-size: 0.85rem;
-                            "
-                            title="All Credentials">
-                        <i class="fas fa-list-ol"></i>
-                    </button>
-                    <button id="previewFilterActive" 
-                            class="preview-filter-btn"
-                            onclick="credentialManager.setPreviewFilter('active')"
-                            style="
-                                width: 28px;
-                                height: 28px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                border-radius: 6px;
-                                background: transparent;
-                                border: none;
-                                color: var(--text-secondary);
-                                cursor: pointer;
-                                transition: all 0.3s;
-                                font-size: 0.85rem;
-                            "
-                            title="Active Credentials">
-                        <i class="fas fa-user-shield"></i>
-                    </button>
-                    <button id="previewFilterPending" 
-                            class="preview-filter-btn"
-                            onclick="credentialManager.setPreviewFilter('pending')"
-                            style="
-                                width: 28px;
-                                height: 28px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                border-radius: 6px;
-                                background: transparent;
-                                border: none;
-                                color: var(--text-secondary);
-                                cursor: pointer;
-                                transition: all 0.3s;
-                                font-size: 0.85rem;
-                            "
-                            title="Pending Credentials">
-                        <i class="fas fa-clock"></i>
-                    </button>
-                    
-                    <!-- Active Filter Count Display -->
-                    <div class="active-filter-count" id="credentialFilterCount" style="
-                        margin-left: 8px;
-                        display: flex;
-                        align-items: center;
-                        padding: 0 8px;
-                        color: var(--primary);
-                        background: transparent;
-                        font-weight: 600;
-                        font-size: 0.75rem;
-                        justify-content: center;
-                        transition: all 0.3s ease;
-                    ">
-                        <span id="filterCountValue">0</span>
+                    <div style="display: flex; gap: 8px;">
+                        <span style="font-size: 0.65rem; color: var(--muted); display: flex; align-items: center; gap: 4px;">
+                            <i class="fas fa-circle" style="color: var(--primary); font-size: 0.48rem;"></i> Active
+                        </span>
+                        <span style="font-size: 0.65rem; color: var(--muted); display: flex; align-items: center; gap: 4px;">
+                            <i class="fas fa-circle" style="color: var(--danger); font-size: 0.48rem;"></i> Pending
+                        </span>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Container for delete confirmation bar (will be inserted dynamically) -->
-            <div id="deleteConfirmationContainer"></div>
-            
-            <div id="previewContainer" style="
-                border-top: 1px solid var(--border);
-                height: 100%;
-                overflow-y: auto;
-            ">
-                ${this.getPreviewContentHTML()}
-            </div>
-        </div>
-    `;
-}
+                
+                <!-- Search and Filter Bar - UPDATED with search count -->
+                <div class="preview-actions" style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 12px;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                ">
+                    <!-- Search Input with Result Count - Matching notes module -->
+                    <div class="preview-search" style="
+                        flex: 1;
+                        min-width: 200px;
+                        position: relative;
+                        background: var(--card-bg);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        padding: 4px 8px;
+                        display: flex;
+                        align-items: center;
+                        transition: all 0.3s;
+                    ">
+                        <i class="fas fa-search" style="
+                            color: var(--text-secondary);
+                            font-size: 0.85rem;
+                            margin-right: 8px;
+                        "></i>
+                        <input type="text" 
+                            id="previewSearchInput" 
+                            placeholder="Search in preview..." 
+                            style="
+                                flex: 1;
+                                background: transparent;
+                                border: none;
+                                color: var(--text-primary);
+                                font-size: 0.8rem;
+                                padding: 4px 0;
+                                outline: none;
+                                width: 100%;
+                            "
+                            oninput="credentialManager.handlePreviewSearch()">
+                        <!-- Search Results Count Badge -->
+                        <div id="searchResultsCount" class="search-results-count" style="
+                            display: none;
+                            align-items: center;
+                            gap: 6px;
+                            margin-left: 8px;
+                            padding-left: 8px;
+                            border-left: 1px solid var(--border);
+                            color: var(--text-secondary);
+                            font-size: 0.65rem;
+                            font-weight: 500;
+                            white-space: nowrap;
+                        ">
+                            <span id="searchResultCountValue">0</span>
+                            <span>results</span>
+                            <button id="clearSearchBtn" class="btn-clear-search" style="
+                                background: transparent;
+                                border: none;
+                                color: var(--danger);
+                                cursor: pointer;
+                                padding: 2px 4px;
+                                font-size: 0.7rem;
+                                transition: all 0.2s;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                border-radius: 4px;
+                            " title="Clear search">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
 
-     // Get preview content HTML - MODIFIED for TOTP support
+                    <!-- Filter Icons - Matching notes filter style -->
+                    <div class="preview-filter-container" style="
+                        display: flex;
+                        gap: 4px;
+                        background: transparent;
+                        border: none;
+                        padding: 4px;
+                        margin: 0;
+                    ">
+                        <button id="previewFilterAll" 
+                                class="preview-filter-btn active"
+                                onclick="credentialManager.setPreviewFilter('all')"
+                                style="
+                                    width: 28px;
+                                    height: 28px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    border-radius: 6px;
+                                    background: var(--active);
+                                    border: none;
+                                    color: var(--primary);
+                                    cursor: pointer;
+                                    transition: all 0.3s;
+                                    font-size: 0.85rem;
+                                "
+                                title="All Credentials">
+                            <i class="fas fa-list-ol"></i>
+                        </button>
+                        <button id="previewFilterActive" 
+                                class="preview-filter-btn"
+                                onclick="credentialManager.setPreviewFilter('active')"
+                                style="
+                                    width: 28px;
+                                    height: 28px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    border-radius: 6px;
+                                    background: transparent;
+                                    border: none;
+                                    color: var(--text-secondary);
+                                    cursor: pointer;
+                                    transition: all 0.3s;
+                                    font-size: 0.85rem;
+                                "
+                                title="Active Credentials">
+                            <i class="fas fa-user-shield"></i>
+                        </button>
+                        <button id="previewFilterPending" 
+                                class="preview-filter-btn"
+                                onclick="credentialManager.setPreviewFilter('pending')"
+                                style="
+                                    width: 28px;
+                                    height: 28px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    border-radius: 6px;
+                                    background: transparent;
+                                    border: none;
+                                    color: var(--text-secondary);
+                                    cursor: pointer;
+                                    transition: all 0.3s;
+                                    font-size: 0.85rem;
+                                "
+                                title="Pending Credentials">
+                            <i class="fas fa-clock"></i>
+                        </button>
+                        
+                        <!-- Active Filter Count Display -->
+                        <div class="active-filter-count" id="credentialFilterCount" style="
+                            margin-left: 8px;
+                            display: flex;
+                            align-items: center;
+                            padding: 0 8px;
+                            color: var(--primary);
+                            background: transparent;
+                            font-weight: 600;
+                            font-size: 0.75rem;
+                            justify-content: center;
+                            transition: all 0.3s ease;
+                        ">
+                            <span id="filterCountValue">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Container for delete confirmation bar (will be inserted dynamically) -->
+                <div id="deleteConfirmationContainer"></div>
+                
+                <div id="previewContainer" style="
+                    border-top: 1px solid var(--border);
+                    height: 100%;
+                    overflow-y: auto;
+                ">
+                    ${this.getPreviewContentHTML()}
+                </div>
+            </div>
+        `;
+    }
+
+     // Get preview content HTML - MODIFIED for normal 2FA display (no TOTP)
     // ========== ADD THIS METHOD - Get Preview Content HTML with Edit Button ==========
 
     getPreviewContentHTML() {
@@ -2628,15 +2518,20 @@ getPreviewSectionHTML() {
                             
                             let displayValue = '';
                             let copyValue = '';
-                            let hasTimer = false;
-                            let timeLeft = 0;
-                            const secret = entry.value;
                             
+                            // ---- NEW: Handle 2FA as a normal secret field (no TOTP) ----
                             if (is2FA) {
-                                timeLeft = this.getTimeRemaining();
-                                displayValue = this.generateTOTP(secret);
-                                copyValue = displayValue;
-                                hasTimer = true;
+                                if (entry.value && entry.value.trim()) {
+                                    const raw = entry.value;
+                                    const maxLen = 12;
+                                    displayValue = raw.length > maxLen 
+                                        ? this.escapeHtml(raw.substring(0, maxLen)) + '...' 
+                                        : this.escapeHtml(raw);
+                                    copyValue = raw;
+                                } else {
+                                    displayValue = '';
+                                    copyValue = '';
+                                }
                             } else if (isSecretField && !this.showPasswords && !isPending && entry.value && entry.value.trim() && !isCustom) {
                                 displayValue = '••••••••••';
                                 copyValue = entry.value;
@@ -2656,18 +2551,14 @@ getPreviewSectionHTML() {
                             const cursorStyle = isClickable ? 'pointer' : 'default';
                             
                             let clickHandler = '';
-                            if (is2FA && isClickable) {
-                                clickHandler = `onclick="credentialManager.copyTOTPCode('${this.escapeHtml(secret)}')"`;
-                            } else if (isClickable && !isSecretField) {
-                                clickHandler = `onclick="credentialManager.copyToClipboard('${this.escapeHtml(copyValue)}')"`;
-                            } else if (isClickable && isSecretField) {
+                            // For all fields, use copyToClipboard (including 2FA now)
+                            if (isClickable) {
                                 clickHandler = `onclick="credentialManager.copyToClipboard('${this.escapeHtml(copyValue)}')"`;
                             }
                             
                             return `
-                                <div class="preview-item ${hasTimer ? 'totp-display' : ''}" 
+                                <div class="preview-item" 
                                     data-value="${this.escapeHtml(entry.value)}" 
-                                    data-secret="${is2FA ? this.escapeHtml(secret) : ''}"
                                     ${clickHandler}
                                     style="
                                         background: ${isPending ? 'rgba(239,68,68,0.05)' : 'rgba(255,255,255,0.03)'};
@@ -2680,38 +2571,27 @@ getPreviewSectionHTML() {
                                         overflow: hidden;
                                         font-size: 0.75rem;
                                         opacity: ${isPending ? '0.7' : '1'};
-                                        min-height: ${hasTimer ? '48px' : 'auto'};
+                                        min-height: auto;
                                     ">
-                                    <div style="display: flex; justify-content: space-between; align-items: ${hasTimer ? 'center' : 'flex-start'}; height: ${hasTimer ? '100%' : 'auto'};">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; height: 100%;">
                                         <div style="flex: 1;">
-                                            <div style="font-size: 0.65rem; font-weight: 600; color: ${isPending ? 'var(--danger)' : 'rgba(255,255,255,0.4)'}; margin-bottom: ${hasTimer ? '2px' : '4px'}; text-transform: uppercase; letter-spacing: 0.4px;">
+                                            <div style="font-size: 0.65rem; font-weight: 600; color: ${isPending ? 'var(--danger)' : 'rgba(255,255,255,0.4)'}; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px;">
                                                 ${field.name}
                                                 ${isNote ? ` <span style="font-size: 0.55rem; color: var(--muted);">(max 24)</span>` : ''}
                                             </div>
-                                            ${hasTimer ? `
-                                                <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
-                                                    <div style="font-size: 0.75rem; font-weight: 600; color: ${isPending ? 'var(--danger)' : 'var(--f-value)'}; font-family: 'Courier New', monospace;">
-                                                        <span class="totp-code">${displayValue}</span>
-                                                    </div>
-                                                    <div style="font-size: 0.6rem; font-weight: 600; color: ${isPending ? 'var(--danger)' : 'var(--f-value)'};">
-                                                        <span class="totp-time">${timeLeft}s</span>
-                                                    </div>
-                                                </div>
-                                            ` : `
-                                                <div style="
-                                                    font-size: 0.75rem;
-                                                    color: ${isPending ? 'var(--danger)' : 'var(--f-value)'};
-                                                    font-family: monospace;
-                                                    font-weight: 500;
-                                                    word-break: break-all;
-                                                    ${isPending ? 'text-decoration: line-through;' : ''}
-                                                ">
-                                                    ${displayValue}
-                                                </div>
-                                            `}
+                                            <div style="
+                                                font-size: 0.75rem;
+                                                color: ${isPending ? 'var(--danger)' : 'var(--f-value)'};
+                                                font-family: monospace;
+                                                font-weight: 500;
+                                                word-break: break-all;
+                                                ${isPending ? 'text-decoration: line-through;' : ''}
+                                            ">
+                                                ${displayValue}
+                                            </div>
                                         </div>
                                         
-                                        ${!hasTimer && isSecretField && !isPending && entry.value && entry.value.trim() && !isCustom ? `
+                                        ${!is2FA && isSecretField && !isPending && entry.value && entry.value.trim() && !isCustom ? `
                                             <button onclick="event.stopPropagation(); credentialManager.toggleSinglePassword(this, '${this.escapeHtml(entry.value)}')" 
                                                     title="${this.showPasswords ? 'Hide' : 'Show'}"
                                                     style="position: absolute; right: 8px; background: transparent; border: none; color: var(--f-label); cursor: pointer; padding: 4px;">
@@ -2719,12 +2599,6 @@ getPreviewSectionHTML() {
                                             </button>
                                         ` : ''}
                                     </div>
-                                    
-                                    ${hasTimer ? `
-                                        <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: rgba(0,0,0,0.1);">
-                                            <div class="totp-progress-bar" style="height: 100%; width: ${(timeLeft / 30) * 100}%; background: ${isPending ? 'var(--danger)' : 'var(--f-value)'};"></div>
-                                        </div>
-                                    ` : ''}
                                     
                                     ${isPending ? `
                                         <div style="position: absolute; top: 0; right: 0; padding: 2px 6.4px; background: var(--danger); color: white; font-size: 0.56rem; border-radius: 0 2px 0 6.4px;">
@@ -2742,191 +2616,136 @@ getPreviewSectionHTML() {
         return html;
     }
 
-// ========== ADD THIS METHOD - Edit from Preview ==========
+    // ========== ADD THIS METHOD - Edit from Preview ==========
 
-// Edit from Preview
-editCredentialFromPreview(rowIndex) {
-    const credentialSet = this.getCredentialSet();
-    const entries = credentialSet.entries || [];
-    const startIndex = rowIndex * 6;
-    
-    if (startIndex + 5 < entries.length) {
-        // Set editing state
-        this.isEditing = true;
-        this.editingRowIndex = rowIndex;
+    // Edit from Preview
+    editCredentialFromPreview(rowIndex) {
+        const credentialSet = this.getCredentialSet();
+        const entries = credentialSet.entries || [];
+        const startIndex = rowIndex * 6;
         
-        // Populate currentFormData with existing values
-        this.currentFormData = {
-            serviceTag: entries[startIndex]?.value || '',
-            username: entries[startIndex + 1]?.value || '',
-            password: entries[startIndex + 2]?.value || '',
-            twofa: entries[startIndex + 3]?.value || '',
-            customField: entries[startIndex + 4]?.value || '',
-            note: entries[startIndex + 5]?.value || '',
-        };
-        
-        // Update the form UI without re-rendering entire container
-        this.updateFormToEditMode();
-        
-        // Scroll to form
-        const form = document.querySelector('.settings-card');
-        if (form) {
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (startIndex + 5 < entries.length) {
+            // Set editing state
+            this.isEditing = true;
+            this.editingRowIndex = rowIndex;
+            
+            // Populate currentFormData with existing values
+            this.currentFormData = {
+                serviceTag: entries[startIndex]?.value || '',
+                username: entries[startIndex + 1]?.value || '',
+                password: entries[startIndex + 2]?.value || '',
+                twofa: entries[startIndex + 3]?.value || '',
+                customField: entries[startIndex + 4]?.value || '',
+                note: entries[startIndex + 5]?.value || '',
+            };
+            
+            // Update the form UI without re-rendering entire container
+            this.updateFormToEditMode();
+            
+            // Scroll to form
+            const form = document.querySelector('.settings-card');
+            if (form) {
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            
+            // Focus on service tag field
+            const serviceTagField = document.getElementById('formServiceTag');
+            if (serviceTagField) {
+                serviceTagField.focus();
+            }
+            
+            this.showNotification(`Editing "${this.currentFormData.serviceTag || 'credential'}"`, 'info');
+        }
+    }
+
+    updateFormToEditMode() {
+        // Use ID instead of class
+        const formContainer = document.getElementById('credentialFormCard');
+        if (!formContainer) {
+            // Fallback to full re-render
+            const container = document.getElementById('credentialContainer');
+            if (container) {
+                container.innerHTML = this.getManagerHTML();
+                this.attachEventListeners();
+                this.attachFormEventListeners();
+            }
+            return;
         }
         
-        // Focus on service tag field
+        // Make sure form is visible
+        formContainer.style.display = '';
+        
+        // Update toggle button state (no class changes needed)
+        const toggleBtn = document.getElementById('toggleCredentialFormBtn');
+        if (toggleBtn) {
+            toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Hide Form';
+        }
+        
+        const parent = formContainer.parentNode;
+        const newFormHTML = this.getCredentialFormHTML();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = newFormHTML;
+        const newForm = tempDiv.firstElementChild;
+        parent.replaceChild(newForm, formContainer);
+        
+        this.attachFormEventListeners();
+        this.populateFormFields();
+    }
+
+    // Populate form fields with currentFormData
+    populateFormFields() {
         const serviceTagField = document.getElementById('formServiceTag');
-        if (serviceTagField) {
-            serviceTagField.focus();
+        const usernameField = document.getElementById('formUsername');
+        const passwordField = document.getElementById('formPassword');
+        const twofaField = document.getElementById('form2FA');
+        const customField = document.getElementById('formCustomField');
+        const noteField = document.getElementById('formNote');
+        
+        if (serviceTagField) serviceTagField.value = this.currentFormData.serviceTag || '';
+        if (usernameField) usernameField.value = this.currentFormData.username || '';
+        if (passwordField) passwordField.value = this.currentFormData.password || '';
+        if (twofaField) twofaField.value = this.currentFormData.twofa || '';
+        if (customField) customField.value = this.currentFormData.customField || '';
+        if (noteField) {
+            const noteValue = (this.currentFormData.note || '').substring(0, 24);
+            noteField.value = noteValue;
+            const counterSpan = document.getElementById('noteCharCount');
+            if (counterSpan) counterSpan.innerHTML = `${noteValue.length} / 24 characters`;
         }
         
-        this.showNotification(`Editing "${this.currentFormData.serviceTag || 'credential'}"`, 'info');
-    }
-}
-
-updateFormToEditMode() {
-    // Find the existing form container
-    const formContainer = document.querySelector('.settings-card');
-    if (!formContainer) {
-        // Fallback to full re-render if form not found
-        const container = document.getElementById('credentialContainer');
-        if (container) {
-            container.innerHTML = this.getManagerHTML();
-            this.attachEventListeners();
-            this.attachFormEventListeners();
+        if (passwordField && passwordField.type !== 'password') {
+            passwordField.type = 'password';
+            const toggleBtn = document.querySelector('.toggle-password-btn[data-target="formPassword"]');
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('i');
+                if (icon) icon.className = 'fas fa-eye';
+            }
         }
-        return;
-    }
-    
-    // Make sure form is visible when editing
-    formContainer.style.display = '';
-    
-    // Update toggle button state
-    const toggleBtn = document.getElementById('toggleCredentialFormBtn');
-    if (toggleBtn) {
-        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Hide Form';
-        toggleBtn.classList.remove('btn-secondary');
-        toggleBtn.classList.add('btn-primary');
-    }
-    
-    // Get the parent
-    const parent = formContainer.parentNode;
-    
-    // Create new form HTML with edit mode
-    const newFormHTML = this.getCredentialFormHTML();
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = newFormHTML;
-    const newForm = tempDiv.firstElementChild;
-    
-    // Replace the old form with the new one
-    parent.replaceChild(newForm, formContainer);
-    
-    // Re-attach form event listeners
-    this.attachFormEventListeners();
-    
-    // Populate form fields with currentFormData
-    this.populateFormFields();
-}
-
-
-// Update just the form section for editing (without re-rendering the whole container)
-updateFormForEditing() {
-    // Find the existing form container
-    const formContainer = document.querySelector('.credential-input-form');
-    if (!formContainer) {
-        // If form doesn't exist, fall back to full re-render
-        const container = document.getElementById('credentialContainer');
-        if (container) {
-            container.innerHTML = this.getManagerHTML();
-            this.attachEventListeners();
-            this.attachFormEventListeners();
+        
+        if (twofaField && twofaField.type !== 'password') {
+            twofaField.type = 'password';
+            const toggleBtn = document.querySelector('.toggle-password-btn[data-target="form2FA"]');
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('i');
+                if (icon) icon.className = 'fas fa-eye';
+            }
         }
-        return;
-    }
-    
-    // Get the parent
-    const parent = formContainer.parentNode;
-    
-    // Create new form HTML
-    const newFormHTML = this.getCredentialFormHTML();
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = newFormHTML;
-    const newForm = tempDiv.firstElementChild;
-    
-    // Replace the old form with the new one
-    parent.replaceChild(newForm, formContainer);
-    
-    // Re-attach form event listeners
-    this.attachFormEventListeners();
-    
-    // Populate form fields with currentFormData
-    this.populateFormFields();
-}
-
-// Populate form fields with currentFormData
-populateFormFields() {
-    const serviceTagField = document.getElementById('formServiceTag');
-    const usernameField = document.getElementById('formUsername');
-    const passwordField = document.getElementById('formPassword');
-    const twofaField = document.getElementById('form2FA');
-    const customField = document.getElementById('formCustomField');
-    const noteField = document.getElementById('formNote');
-    
-    if (serviceTagField) serviceTagField.value = this.currentFormData.serviceTag || '';
-    if (usernameField) usernameField.value = this.currentFormData.username || '';
-    if (passwordField) passwordField.value = this.currentFormData.password || '';
-    if (twofaField) twofaField.value = this.currentFormData.twofa || '';
-    if (customField) customField.value = this.currentFormData.customField || '';
-    if (noteField) {
-        const noteValue = (this.currentFormData.note || '').substring(0, 24);
-        noteField.value = noteValue;
-        const counterSpan = document.getElementById('noteCharCount');
-        if (counterSpan) counterSpan.innerHTML = `${noteValue.length} / 24 characters`;
-    }
-    
-    if (passwordField && passwordField.type !== 'password') {
-        passwordField.type = 'password';
-        const toggleBtn = document.querySelector('.toggle-password-btn[data-target="formPassword"]');
-        if (toggleBtn) {
-            const icon = toggleBtn.querySelector('.material-icons');
-            if (icon) icon.textContent = 'visibility';
+        
+        if (customField && customField.type !== 'password') {
+            customField.type = 'password';
+            const toggleBtn = document.querySelector('.toggle-password-btn[data-target="formCustomField"]');
+            if (toggleBtn) {
+                const icon = toggleBtn.querySelector('i');
+                if (icon) icon.className = 'fas fa-eye';
+            }
         }
+        
+        const addBtn = document.getElementById('credentialFormAddBtn');
+        const updateBtn = document.getElementById('credentialFormUpdateBtn');
+        
+        if (addBtn) addBtn.style.display = this.isEditing ? 'none' : 'inline-flex';
+        if (updateBtn) updateBtn.style.display = this.isEditing ? 'inline-flex' : 'none';
     }
-    
-    if (twofaField && twofaField.type !== 'password') {
-        twofaField.type = 'password';
-        const toggleBtn = document.querySelector('.toggle-password-btn[data-target="form2FA"]');
-        if (toggleBtn) {
-            const icon = toggleBtn.querySelector('.material-icons');
-            if (icon) icon.textContent = 'visibility';
-        }
-    }
-    
-    if (customField && customField.type !== 'password') {
-        customField.type = 'password';
-        const toggleBtn = document.querySelector('.toggle-password-btn[data-target="formCustomField"]');
-        if (toggleBtn) {
-            const icon = toggleBtn.querySelector('.material-icons');
-            if (icon) icon.textContent = 'visibility';
-        }
-    }
-    
-    if (twofaField && this.currentFormData.twofa) {
-        const statusDiv = document.getElementById('form2FAStatus');
-        if (statusDiv) {
-            const isValid = this.validateTOTPSecret(this.currentFormData.twofa);
-            statusDiv.innerHTML = isValid ? 
-                '<span style="color: var(--primary);">✓ Valid TOTP secret</span>' : 
-                '<span style="color: var(--danger);">✗ Invalid TOTP secret format</span>';
-        }
-    }
-    
-    const addBtn = document.getElementById('credentialFormAddBtn');
-    const updateBtn = document.getElementById('credentialFormUpdateBtn');
-    
-    if (addBtn) addBtn.style.display = this.isEditing ? 'none' : 'inline-flex';
-    if (updateBtn) updateBtn.style.display = this.isEditing ? 'inline-flex' : 'none';
-}
 
     // Update updatePreview method
     updatePreview() {
@@ -2950,158 +2769,158 @@ populateFormFields() {
     // ========== SEARCH & FILTER ==========
     // Add these methods to handle preview search/filter
 
-setPreviewFilter(filterType) {
-    this.currentPreviewFilter = filterType;
-    
-    // Update button states
-    document.querySelectorAll('.preview-filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-        btn.style.background = 'transparent';
-        btn.style.borderColor = 'var(--border)';
-        btn.style.color = 'var(--text-secondary)';
-    });
-    
-    const activeBtn = document.getElementById(`previewFilter${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`);
-    if (activeBtn) {
-        activeBtn.classList.add('active');
-        activeBtn.style.background = 'var(--active)';
-        activeBtn.style.borderColor = 'var(--active)';
-        activeBtn.style.color = 'var(--primary)';
-    }
-    
-    this.updatePreview();
-    this.updateFilterCount();
-    this.updateSearchResultsCount(); // Add this line to update search count on filter change
-}
-
-// Add this new method to update the filter count
-updateFilterCount() {
-    const countElement = document.getElementById('filterCountValue');
-    if (!countElement) return;
-    
-    const credentialSet = this.getCredentialSet();
-    let entries = credentialSet.entries || [];
-    
-    // Count filtered rows based on current filter
-    let count = 0;
-    const rows = Math.ceil(entries.length / 6);
-    
-    for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
-        const startIndex = rowIndex * 6;
-        const rowEntries = entries.slice(startIndex, startIndex + 6);
+    setPreviewFilter(filterType) {
+        this.currentPreviewFilter = filterType;
         
-        let matchesFilter = true;
-        if (this.currentPreviewFilter !== 'all') {
-            const hasData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
-            const isPending = rowEntries.some(entry => entry && entry.pending);
+        // Update button states
+        document.querySelectorAll('.preview-filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.style.background = 'transparent';
+            btn.style.borderColor = 'var(--border)';
+            btn.style.color = 'var(--text-secondary)';
+        });
+        
+        const activeBtn = document.getElementById(`previewFilter${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            activeBtn.style.background = 'var(--active)';
+            activeBtn.style.borderColor = 'var(--active)';
+            activeBtn.style.color = 'var(--primary)';
+        }
+        
+        this.updatePreview();
+        this.updateFilterCount();
+        this.updateSearchResultsCount(); // Add this line to update search count on filter change
+    }
+
+    // Add this new method to update the filter count
+    updateFilterCount() {
+        const countElement = document.getElementById('filterCountValue');
+        if (!countElement) return;
+        
+        const credentialSet = this.getCredentialSet();
+        let entries = credentialSet.entries || [];
+        
+        // Count filtered rows based on current filter
+        let count = 0;
+        const rows = Math.ceil(entries.length / 6);
+        
+        for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
+            const startIndex = rowIndex * 6;
+            const rowEntries = entries.slice(startIndex, startIndex + 6);
             
-            switch(this.currentPreviewFilter) {
-                case 'active':
-                    matchesFilter = hasData && !isPending;
-                    break;
-                case 'pending':
-                    matchesFilter = isPending;
-                    break;
+            let matchesFilter = true;
+            if (this.currentPreviewFilter !== 'all') {
+                const hasData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
+                const isPending = rowEntries.some(entry => entry && entry.pending);
+                
+                switch(this.currentPreviewFilter) {
+                    case 'active':
+                        matchesFilter = hasData && !isPending;
+                        break;
+                    case 'pending':
+                        matchesFilter = isPending;
+                        break;
+                }
+            }
+            
+            // Also check if row has any data
+            const hasAnyData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
+            if (matchesFilter && hasAnyData) {
+                count++;
             }
         }
         
-        // Also check if row has any data
-        const hasAnyData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
-        if (matchesFilter && hasAnyData) {
-            count++;
+        countElement.textContent = count;
+        
+        // Add pulse animation
+        const filterCountDiv = document.getElementById('credentialFilterCount');
+        if (filterCountDiv) {
+            filterCountDiv.classList.add('pulse');
+            setTimeout(() => {
+                filterCountDiv.classList.remove('pulse');
+            }, 300);
         }
     }
-    
-    countElement.textContent = count;
-    
-    // Add pulse animation
-    const filterCountDiv = document.getElementById('credentialFilterCount');
-    if (filterCountDiv) {
-        filterCountDiv.classList.add('pulse');
-        setTimeout(() => {
-            filterCountDiv.classList.remove('pulse');
+
+    handlePreviewSearch() {
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+        }
+        this.searchDebounceTimer = setTimeout(() => {
+            const searchInput = document.getElementById('previewSearchInput');
+            if (searchInput) {
+                this.currentSearchTerm = searchInput.value.toLowerCase().trim();
+                this.updatePreview();
+                this.updateFilterCount();
+                this.updateSearchResultsCount();
+            }
         }, 300);
     }
-}
 
-handlePreviewSearch() {
-    if (this.searchDebounceTimer) {
-        clearTimeout(this.searchDebounceTimer);
+    // Add this new method to update search results count
+    updateSearchResultsCount() {
+        const searchCountDiv = document.getElementById('searchResultsCount');
+        const searchResultSpan = document.getElementById('searchResultCountValue');
+        
+        if (!searchCountDiv || !searchResultSpan) return;
+        
+        const credentialSet = this.getCredentialSet();
+        let entries = credentialSet.entries || [];
+        
+        // Count matching rows based on search term
+        let matchingRowsCount = 0;
+        const rows = Math.ceil(entries.length / 6);
+        
+        for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
+            const startIndex = rowIndex * 6;
+            const rowEntries = entries.slice(startIndex, startIndex + 6);
+            
+            let matchesSearch = true;
+            if (this.currentSearchTerm) {
+                matchesSearch = rowEntries.some(entry => 
+                    entry && entry.value && entry.value.toLowerCase().includes(this.currentSearchTerm)
+                );
+            }
+            
+            const hasAnyData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
+            
+            if (matchesSearch && hasAnyData) {
+                matchingRowsCount++;
+            }
+        }
+        
+        // Show/hide the search results count
+        if (this.currentSearchTerm && matchingRowsCount > 0) {
+            searchResultSpan.textContent = matchingRowsCount;
+            searchCountDiv.style.display = 'flex';
+            
+            // Add clear search button functionality
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (clearBtn) {
+                // Remove existing listener to avoid duplicates
+                const newClearBtn = clearBtn.cloneNode(true);
+                clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
+                newClearBtn.addEventListener('click', () => {
+                    const searchInput = document.getElementById('previewSearchInput');
+                    if (searchInput) {
+                        searchInput.value = '';
+                        this.currentSearchTerm = '';
+                        this.updatePreview();
+                        this.updateFilterCount();
+                        this.updateSearchResultsCount();
+                        searchInput.focus();
+                    }
+                });
+            }
+        } else if (this.currentSearchTerm && matchingRowsCount === 0) {
+            // Show count with 0 results
+            searchResultSpan.textContent = '0';
+            searchCountDiv.style.display = 'flex';
+        } else {
+            searchCountDiv.style.display = 'none';
+        }
     }
-    this.searchDebounceTimer = setTimeout(() => {
-        const searchInput = document.getElementById('previewSearchInput');
-        if (searchInput) {
-            this.currentSearchTerm = searchInput.value.toLowerCase().trim();
-            this.updatePreview();
-            this.updateFilterCount();
-            this.updateSearchResultsCount();
-        }
-    }, 300);
-}
-
-// Add this new method to update search results count
-updateSearchResultsCount() {
-    const searchCountDiv = document.getElementById('searchResultsCount');
-    const searchResultSpan = document.getElementById('searchResultCountValue');
-    
-    if (!searchCountDiv || !searchResultSpan) return;
-    
-    const credentialSet = this.getCredentialSet();
-    let entries = credentialSet.entries || [];
-    
-    // Count matching rows based on search term
-    let matchingRowsCount = 0;
-    const rows = Math.ceil(entries.length / 6);
-    
-    for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
-        const startIndex = rowIndex * 6;
-        const rowEntries = entries.slice(startIndex, startIndex + 6);
-        
-        let matchesSearch = true;
-        if (this.currentSearchTerm) {
-            matchesSearch = rowEntries.some(entry => 
-                entry && entry.value && entry.value.toLowerCase().includes(this.currentSearchTerm)
-            );
-        }
-        
-        const hasAnyData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
-        
-        if (matchesSearch && hasAnyData) {
-            matchingRowsCount++;
-        }
-    }
-    
-    // Show/hide the search results count
-    if (this.currentSearchTerm && matchingRowsCount > 0) {
-        searchResultSpan.textContent = matchingRowsCount;
-        searchCountDiv.style.display = 'flex';
-        
-        // Add clear search button functionality
-        const clearBtn = document.getElementById('clearSearchBtn');
-        if (clearBtn) {
-            // Remove existing listener to avoid duplicates
-            const newClearBtn = clearBtn.cloneNode(true);
-            clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
-            newClearBtn.addEventListener('click', () => {
-                const searchInput = document.getElementById('previewSearchInput');
-                if (searchInput) {
-                    searchInput.value = '';
-                    this.currentSearchTerm = '';
-                    this.updatePreview();
-                    this.updateFilterCount();
-                    this.updateSearchResultsCount();
-                    searchInput.focus();
-                }
-            });
-        }
-    } else if (this.currentSearchTerm && matchingRowsCount === 0) {
-        // Show count with 0 results
-        searchResultSpan.textContent = '0';
-        searchCountDiv.style.display = 'flex';
-    } else {
-        searchCountDiv.style.display = 'none';
-    }
-}
 
     // ========== PASSWORD VISIBILITY ==========
     // Password visibility functions
@@ -3170,34 +2989,34 @@ updateSearchResultsCount() {
         });
     }
 
-copyRow(rowIndex) {
-    const credentialSet = this.getCredentialSet();
-    const entries = credentialSet.entries || [];
-    const startIndex = rowIndex * 6;
-    const rowEntries = entries.slice(startIndex, startIndex + 6);
-    
-    const hasData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
-    if (!hasData) {
-        this.showNotification('Cannot copy empty row', 'warning');
-        return;
+    copyRow(rowIndex) {
+        const credentialSet = this.getCredentialSet();
+        const entries = credentialSet.entries || [];
+        const startIndex = rowIndex * 6;
+        const rowEntries = entries.slice(startIndex, startIndex + 6);
+        
+        const hasData = rowEntries.some(entry => entry && entry.value && entry.value.trim());
+        if (!hasData) {
+            this.showNotification('Cannot copy empty row', 'warning');
+            return;
+        }
+        
+        // Note: truncate note to 24 chars for display in copy
+        const noteValue = rowEntries[5]?.value || '';
+        const truncatedNote = noteValue.length > 24 ? noteValue.substring(0, 24) : noteValue;
+        
+        let rowText = `Row ${rowIndex + 1}:\n`;
+        rowText += `  Service: ${rowEntries[0]?.value || ''}\n`;
+        rowText += `  Username: ${rowEntries[1]?.value || ''}\n`;
+        rowText += `  Password: ${rowEntries[2]?.value || ''}\n`;
+        rowText += `  2FA: ${rowEntries[3]?.value || ''}\n`;
+        rowText += `  Custom Field: ${rowEntries[4]?.value || ''}\n`;
+        rowText += `  Note: ${truncatedNote}`;
+        
+        navigator.clipboard.writeText(rowText).then(() => {
+            this.showNotification(`Row ${rowIndex + 1} copied to clipboard`, 'success');
+        });
     }
-    
-    // Note: truncate note to 24 chars for display in copy
-    const noteValue = rowEntries[5]?.value || '';
-    const truncatedNote = noteValue.length > 24 ? noteValue.substring(0, 24) : noteValue;
-    
-    let rowText = `Row ${rowIndex + 1}:\n`;
-    rowText += `  Service: ${rowEntries[0]?.value || ''}\n`;
-    rowText += `  Username: ${rowEntries[1]?.value || ''}\n`;
-    rowText += `  Password: ${rowEntries[2]?.value || ''}\n`;
-    rowText += `  2FA: ${rowEntries[3]?.value || ''}\n`;
-    rowText += `  Custom Field: ${rowEntries[4]?.value || ''}\n`;
-    rowText += `  Note: ${truncatedNote}`;
-    
-    navigator.clipboard.writeText(rowText).then(() => {
-        this.showNotification(`Row ${rowIndex + 1} copied to clipboard`, 'success');
-    });
-}
 
 
     // Add this method to handle note copying properly
@@ -3213,43 +3032,6 @@ copyRow(rowIndex) {
             this.showNotification('Copied to clipboard', 'success');
         });
     }
-
-    // Method to copy TOTP code
-    copyTOTPCode(secret) {
-        try {
-            // Clean the secret
-            const cleanSecret = secret.trim();
-            if (!cleanSecret) {
-                this.showNotification('No TOTP secret found', 'warning');
-                return;
-            }
-            
-            // Generate fresh TOTP code
-            const currentCode = this.generateTOTP(cleanSecret);
-            
-            // Don't copy if invalid
-            if (currentCode === 'Error' || currentCode === 'Invalid') {
-                this.showNotification('Invalid TOTP secret', 'error');
-                return;
-            }
-            
-            // Get time remaining for the message
-            const timeLeft = this.getTimeRemaining();
-            
-            // Copy to clipboard
-            navigator.clipboard.writeText(currentCode).then(() => {
-                this.showNotification(`TOTP code copied: ${currentCode} (valid for ${timeLeft}s)`, 'success');
-            }).catch(err => {
-                console.error('Failed to copy TOTP:', err);
-                this.showNotification('Failed to copy TOTP code', 'error');
-            });
-            
-        } catch (error) {
-            console.error('Error copying TOTP:', error);
-            this.showNotification('Error generating TOTP code', 'error');
-        }
-    }
-
 
     // ========== ROW STATUS ==========
     toggleRowStatus(rowIndex) {
@@ -3294,273 +3076,6 @@ copyRow(rowIndex) {
     getFieldName(index) {
         const fieldNames = ['Service Tag', 'Username', 'Password', '2FA', 'Custom Field', 'Note'];
         return fieldNames[index] || `Field ${index}`;
-    }
-
-
-
-    // ========== TOTP OPERATIONS ==========
-    // Start TOTP timer to refresh codes every second
-    startTOTPTimer() {
-        // Clear any existing interval
-        if (this.totpInterval) {
-            clearInterval(this.totpInterval);
-        }
-        
-        // Update immediately
-        this.updateTOTPCodes();
-        
-        // Update every second for smooth progress bar
-        this.totpInterval = setInterval(() => {
-            this.updateTOTPCodes();
-        }, 1000);
-    }
-
-    stopTOTPTimer() {
-        if (this.totpInterval) {
-            clearInterval(this.totpInterval);
-            this.totpInterval = null;
-        }
-    }
-
-    // Update TOTP codes and progress bars
-    updateTOTPCodes() {
-        const previewContainer = document.getElementById('previewContainer');
-        if (!previewContainer) return;
-
-        // Find all TOTP displays
-        const totpDisplays = previewContainer.querySelectorAll('.totp-display');
-        
-        totpDisplays.forEach(display => {
-            const secret = display.dataset.secret;
-            if (secret && secret !== 'undefined' && secret !== 'null') {
-                try {
-                    const timeLeft = this.getTimeRemaining();
-                    const code = this.generateTOTP(secret.trim());
-                    
-                    // Only update if code is valid
-                    if (code !== 'Error' && code !== 'Invalid') {
-                        // Update code with time color
-                        const codeSpan = display.querySelector('.totp-code');
-                        if (codeSpan) {
-                            codeSpan.textContent = code;
-                        }
-                        
-                        // Update time indicator
-                        const timeSpan = display.querySelector('.totp-time');
-                        if (timeSpan) {
-                            timeSpan.textContent = `${timeLeft}s`;
-                        }
-                        
-                        // Update progress bar
-                        const progressBar = display.querySelector('.totp-progress-bar');
-                        if (progressBar) {
-                            progressBar.style.width = `${(timeLeft / 30) * 100}%`;
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error updating TOTP:', error);
-                }
-            }
-        });
-    }
-
-    // Get time remaining in current 30-second interval
-    getTimeRemaining() {
-        const now = Math.floor(Date.now() / 1000);
-        return 30 - (now % 30);
-    }
-
-    // Real TOTP generation function using the working implementation
-    generateTOTP(secret) {
-        try {
-            // Clean the secret
-            const cleanSecret = secret.replace(/\s/g, '').toUpperCase();
-            if (!cleanSecret) return 'Invalid';
-            
-            // Decode base32 secret
-            const key = this.base32Decode(cleanSecret);
-            if (key.length === 0) return 'Invalid';
-            
-            const step = 30;
-            let counter = Math.floor(Date.now() / 1000 / step);
-            const msg = new Array(8).fill(0);
-            
-            // Convert counter to 8-byte big-endian array
-            for (let i = 7; i >= 0; i--) {
-                msg[i] = counter & 0xff;
-                counter >>= 8;
-            }
-            
-            // Generate HMAC-SHA1
-            const hash = this.hmacSha1(key, msg);
-            
-            // Dynamic truncation
-            const offset = hash[hash.length - 1] & 0x0f;
-            
-            // Extract 4-byte dynamic binary code
-            const bin = ((hash[offset] & 0x7f) << 24) |
-                       ((hash[offset + 1] & 0xff) << 16) |
-                       ((hash[offset + 2] & 0xff) << 8) |
-                       (hash[offset + 3] & 0xff);
-            
-            // Generate 6-digit code (default for TOTP)
-            const otp = bin % 1000000;
-            
-            // Pad with leading zeros
-            return otp.toString().padStart(6, '0');
-            
-        } catch (error) {
-            console.error('TOTP generation error:', error);
-            return 'Error';
-        }
-    }
-
-    // Add this method to handle 2FA code validation
-    validateTOTPSecret(secret) {
-        if (!secret) return false;
-        
-        // Basic validation for Base32 TOTP secret
-        const base32Regex = /^[A-Z2-7]+=*$/i;
-        const cleanSecret = secret.replace(/\s/g, '').toUpperCase();
-        
-        if (!base32Regex.test(cleanSecret)) {
-            return false;
-        }
-        
-        // Check length (typically 16, 32 characters for SHA1 TOTP)
-        const validLengths = [16, 32, 64]; // Common lengths for TOTP secrets
-        if (!validLengths.includes(cleanSecret.length)) {
-            // Not strictly invalid, but uncommon
-            console.warn('Unusual TOTP secret length:', cleanSecret.length);
-        }
-        
-        return true;
-    }
-
-    // Add QR code scanning helper method (optional)
-    extractSecretFromQR(qrText) {
-        // Common TOTP URI format: otpauth://totp/Service:user?secret=SECRET&issuer=Service
-        const match = qrText.match(/secret=([A-Z2-7]+)/i);
-        if (match) {
-            return match[1];
-        }
-        
-        // Also try different formats
-        const match2 = qrText.match(/secret%3D([A-Z2-7]+)/i);
-        if (match2) {
-            return match2[1];
-        }
-        
-        return null;
-    }
-
-    // Add method to generate TOTP URI for QR codes
-    generateTOTPURI(service, account, secret) {
-        return `otpauth://totp/${encodeURIComponent(service)}:${encodeURIComponent(account)}?secret=${secret}&issuer=${encodeURIComponent(service)}&algorithm=SHA1&digits=6&period=30`;
-    }
-
-    // Add this method to show TOTP validation in table
-    update2FAValidation() {
-        const inputs = document.querySelectorAll('input[data-col="4"]');
-        inputs.forEach(input => {
-            const secret = input.value.trim();
-            if (secret) {
-                const isValid = this.validateTOTPSecret(secret);
-                if (isValid) {
-                    input.style.borderColor = 'var(--primary)';
-                    input.style.boxShadow = '0 0 0 1px var(--primary)';
-                } else {
-                    input.style.borderColor = 'var(--danger)';
-                    input.style.boxShadow = '0 0 0 1px var(--danger)';
-                }
-            } else {
-                input.style.borderColor = '';
-                input.style.boxShadow = '';
-            }
-        });
-    }
-
-
-    // ========== HMAC & BASE32 UTILITIES ==========
-    // Base32 decoding for TOTP secrets
-    decodeBase32(base32) {
-        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-        const cleaned = base32.replace(/=+$/, '').replace(/\s/g, '').toUpperCase();
-        
-        let bits = 0;
-        let value = 0;
-        let output = [];
-        
-        for (let i = 0; i < cleaned.length; i++) {
-            const char = cleaned.charAt(i);
-            const index = alphabet.indexOf(char);
-            if (index === -1) continue;
-            
-            value = (value << 5) | index;
-            bits += 5;
-            
-            if (bits >= 8) {
-                output.push((value >>> (bits - 8)) & 0xFF);
-                bits -= 8;
-            }
-        }
-        
-        return new Uint8Array(output);
-    }
-
-    sha1(msg) {
-        function rol(n, s) { return (n << s) | (n >>> (32 - s)); }
-        let h0 = 0x67452301, h1 = 0xefcdab89, h2 = 0x98badcfe, h3 = 0x10325476, h4 = 0xc3d2e1f0;
-        msg = msg.slice();
-        const ml = msg.length * 8;
-        msg.push(0x80);
-        while ((msg.length * 8) % 512 !== 448) msg.push(0);
-        for (let i = 7; i >= 0; i--) msg.push((ml >>> (i * 8)) & 255);
-        for (let i = 0; i < msg.length; i += 64) {
-            let w = new Array(80);
-            for (let j = 0; j < 16; j++) w[j] = (msg[i + 4 * j] << 24) | (msg[i + 4 * j + 1] << 16) | (msg[i + 4 * j + 2] << 8) | msg[i + 4 * j + 3];
-            for (let j = 16; j < 80; j++) w[j] = rol(w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16], 1);
-            let a = h0, b = h1, c = h2, d = h3, e = h4;
-            for (let j = 0; j < 80; j++) {
-                let f, k;
-                if (j < 20) { f = (b & c) | ((~b) & d); k = 0x5a827999; }
-                else if (j < 40) { f = b ^ c ^ d; k = 0x6ed9eba1; }
-                else if (j < 60) { f = (b & c) | (b & d) | (c & d); k = 0x8f1bbcdc; }
-                else { f = b ^ c ^ d; k = 0xca62c1d6; }
-                const temp = (rol(a, 5) + f + e + k + w[j]) >>> 0;
-                e = d; d = c; c = rol(b, 30) >>> 0; b = a; a = temp;
-            }
-            h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0; h4 = (h4 + e) >>> 0;
-        }
-        return [h0, h1, h2, h3, h4].flatMap(h => [(h >>> 24) & 255, (h >>> 16) & 255, (h >>> 8) & 255, h & 255]);
-    }
-
-    // Base32 decoding function from totp.html
-    base32Decode(str) {
-        const base32chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-        let bits = "", bytes = [];
-        str = str.replace(/=+$/, '').toUpperCase();
-        for (let c of str) {
-            const v = base32chars.indexOf(c);
-            if (v < 0) continue;
-            bits += v.toString(2).padStart(5, '0');
-        }
-        for (let i = 0; i + 8 <= bits.length; i += 8) {
-            bytes.push(parseInt(bits.slice(i, i + 8), 2));
-        }
-        return bytes;
-    }
-
-    // HMAC-SHA1 implementation from totp.html
-    hmacSha1(key, msg) {
-        if (key.length > 64) key = this.sha1(key);
-        const o = [], i = [];
-        for (let n = 0; n < 64; n++) {
-            const k = key[n] || 0;
-            o[n] = 0x5c ^ k;
-            i[n] = 0x36 ^ k;
-        }
-        return this.sha1(i.concat(msg).concat(o.concat(this.sha1(i.concat(msg)))));
     }
 
 
@@ -3659,14 +3174,14 @@ copyRow(rowIndex) {
             .replace(/'/g, "&#039;");
     }
 
-// Backward compatibility wrapper
-showNotification(message, type = 'success') {
-    if (window.toastManager) {
-        window.toastManager.show(message, type);
-    } else {
-        console.log(`[${type.toUpperCase()}] ${message}`);
+    // Backward compatibility wrapper
+    showNotification(message, type = 'success') {
+        if (window.toastManager) {
+            window.toastManager.show(message, type);
+        } else {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
     }
-}
 
 
 
@@ -3674,74 +3189,61 @@ showNotification(message, type = 'success') {
     // ========== STYLES & CSS ==========
     
     // Add this to your addStickyColumnStyles method or create a new method
-addPreviewStyles() {
-    if (!document.getElementById('preview-styles')) {
-        const style = document.createElement('style');
-        style.id = 'preview-styles';
-        style.textContent = `
-            /* Preview container smooth updates */
-            #previewContainer {
-                transition: opacity 0.1s ease;
-            }
-            
-            .preview-card {
-                transition: all 0.2s ease;
-            }
-            
-            .preview-item {
-                transition: all 0.15s ease;
-            }
+    addPreviewStyles() {
+        if (!document.getElementById('preview-styles')) {
+            const style = document.createElement('style');
+            style.id = 'preview-styles';
+            style.textContent = `
+                /* Preview container smooth updates */
+                #previewContainer {
+                    transition: opacity 0.1s ease;
+                }
+                
+                .preview-card {
+                    transition: all 0.2s ease;
+                }
+                
+                .preview-item {
+                    transition: all 0.15s ease;
+                }
 
-            .preview-item.note-field {
-                cursor: pointer;
-            }
-            
-            .totp-code, .totp-time {
-                transition: color 0.1s ease;
-            }
-            
-            .totp-progress-bar {
-                transition: width 0.2s linear, background-color 0.1s ease;
-            }
-            
-            /* 
-            .preview-item div > div:first-child {
-                color: var(--primary-light) !important; 
-            }
-                */
-               
-            /* Modal animations */
-            @keyframes fadeIn {
-                from { opacity: 0; }
-                to { opacity: 1; }
-            }
-            
-            @keyframes fadeOut {
-                from { opacity: 1; }
-                to { opacity: 0; }
-            }
-            
-            @keyframes slideUp {
-                from { 
-                    opacity: 0;
-                    transform: translateY(20px);
+                .preview-item.note-field {
+                    cursor: pointer;
                 }
-                to { 
-                    opacity: 1;
-                    transform: translateY(0);
+                
+                
+                /*  */
+                
+                /* Modal animations */
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
                 }
-            }
-        `;
-        document.head.appendChild(style);
+                
+                @keyframes fadeOut {
+                    from { opacity: 1; }
+                    to { opacity: 0; }
+                }
+                
+                @keyframes slideUp {
+                    from { 
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to { 
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
     }
-}
 
 
     // ========== RESET & CLEANUP ==========
     // Clear local data for logout
     async clearLocalData() {
-        // Clear timers
-        this.stopTOTPTimer();
 
         if (this.debounceTimer) clearTimeout(this.debounceTimer);
         if (this.syncTimer) clearTimeout(this.syncTimer);
@@ -3766,9 +3268,9 @@ addPreviewStyles() {
             if (this.firebaseListeners.credentials) {
                 const homeDb = window.authModule?.getHomeDatabaseInstance();
                 if (homeDb && homeDb.db) {
-                    const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-                    if (encodedEmail) {
-                        const ref = homeDb.db.ref(`userData/${encodedEmail}/credentialData`);
+                    const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+                    if (encodedPhone) {
+                        const ref = homeDb.db.ref(`userData/${encodedPhone}/credentialData`);
                         ref.off('value', this.firebaseListeners.credentials.value);
                     }
                 }
@@ -3840,13 +3342,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }, 30000);
     
-    // Start TOTP timer
-    setTimeout(() => {
-        if (credentialManager && credentialManager.startTOTPTimer) {
-            credentialManager.startTOTPTimer();
-        }
-    }, 500);
-    
     // Listen for auth changes
     window.addEventListener('authSuccess', async () => {
         if (credentialManager) {
@@ -3854,3 +3349,4 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 });
+

@@ -90,13 +90,13 @@ class NotesModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return;
 
             console.log('Setting up Firebase real-time listeners for notes...');
 
             // Listen for notes changes
-            const notesRef = homeDb.db.ref(`userData/${encodedEmail}/notesModuleData/notes`);
+            const notesRef = homeDb.db.ref(`userData/${encodedPhone}/notesModuleData/notes`);
             this.setupFirebaseListener('notes', notesRef);
 
             // Load initial data from Firebase
@@ -139,12 +139,12 @@ class NotesModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return false;
 
             console.log('Loading notes data from Firebase...');
 
-            const notesRef = homeDb.db.ref(`userData/${encodedEmail}/notesModuleData/notes`);
+            const notesRef = homeDb.db.ref(`userData/${encodedPhone}/notesModuleData/notes`);
             const notesSnapshot = await notesRef.once('value');
             const notesData = notesSnapshot.val();
 
@@ -425,14 +425,14 @@ class NotesModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return false;
 
             // Mark as pending operation
             this.pendingOperations.set(`notes:${note.id}`, true);
 
             // Save to Firebase
-            const noteRef = homeDb.db.ref(`userData/${encodedEmail}/notesModuleData/notes/${note.id}`);
+            const noteRef = homeDb.db.ref(`userData/${encodedPhone}/notesModuleData/notes/${note.id}`);
             await noteRef.set(note);
 
             // Update local cache
@@ -470,14 +470,14 @@ class NotesModule {
             const homeDb = window.authModule.getHomeDatabaseInstance();
             if (!homeDb || !homeDb.db) return false;
 
-            const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser.email);
-            if (!encodedEmail) return false;
+            const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser.phone);
+            if (!encodedPhone) return false;
 
             // Mark as pending operation
             this.pendingOperations.set(`notes:${noteId}`, true);
 
             // Delete from Firebase
-            const noteRef = homeDb.db.ref(`userData/${encodedEmail}/notesModuleData/notes/${noteId}`);
+            const noteRef = homeDb.db.ref(`userData/${encodedPhone}/notesModuleData/notes/${noteId}`);
             await noteRef.remove();
 
             // Delete from local cache
@@ -1994,9 +1994,9 @@ showNotification(message, type = 'success') {
             if (this.firebaseListeners.notes) {
                 const homeDb = window.authModule?.getHomeDatabaseInstance();
                 if (homeDb && homeDb.db) {
-                    const encodedEmail = window.authModule.encodeEmail(window.authModule.currentUser?.email);
-                    if (encodedEmail) {
-                        const notesRef = homeDb.db.ref(`userData/${encodedEmail}/notesModuleData/notes`);
+                    const encodedPhone = window.authModule.encodePhone(window.authModule.currentUser?.phone);
+                    if (encodedPhone) {
+                        const notesRef = homeDb.db.ref(`userData/${encodedPhone}/notesModuleData/notes`);
                         notesRef.off('child_added', this.firebaseListeners.notes.added);
                         notesRef.off('child_changed', this.firebaseListeners.notes.changed);
                         notesRef.off('child_removed', this.firebaseListeners.notes.removed);
@@ -2094,7 +2094,7 @@ getNotesHTML() {
         <div class="notes-container">
             <div class="module-card">
                 <div class="module-icon" style="color: var(--primary);">
-                    <span class="material-icons">notes</span>
+                    <i class="fas fa-sticky-note"></i>
                 </div>
                 <div class="module-info">
                     <div class="module-title">Notes Manager</div>
@@ -2266,7 +2266,7 @@ getNotesHTML() {
 
             <div class="notes-actions">
                 <div class="notes-search">
-                    <span class="material-icons">search</span>
+                    <i class="fas fa-search"></i>
                     <input type="text" placeholder="Search notes..." id="noteSearch">
                 </div>
                 <div id="filterIcon" class="filter-design">
@@ -2313,7 +2313,7 @@ getNotesHTML() {
                     <div class="note-view-actions">                       
                         <div class="note-view-more-dropdown">
                             <button class="note-more-btn">
-                                <i class="fa-solid fa-ellipsis-vertical"></i>
+                                <i class="fas fa-ellipsis-vertical"></i>
                             </button>
                             <div class="note-more-dropdown-menu">
                                 <!-- Dropdown items will be populated dynamically -->

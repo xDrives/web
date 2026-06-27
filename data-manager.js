@@ -5,7 +5,7 @@ class DataManager {
         this.currentUser = null;
         this.masterDB = null;
         this.homeDB = null;
-        this.encodedEmail = null;
+        this.encodedPhone = null;
         this.initialized = false;
     }
 
@@ -20,8 +20,8 @@ class DataManager {
         this.currentUser = authModule.currentUser;
         this.masterDB = authModule.getMasterDB();
         
-        if (this.currentUser?.email) {
-            this.encodedEmail = authModule.encodeEmail(this.currentUser.email);
+        if (this.currentUser?.phone) {
+            this.encodedPhone = authModule.encodePhone(this.currentUser.phone);
         }
         
         this.initialized = true;
@@ -51,12 +51,12 @@ class DataManager {
     // Get user data reference in home database
     getUserDataRef(path = '') {
         const homeDb = this.getHomeDatabase();
-        if (!homeDb || !this.encodedEmail) {
-            console.error('Cannot get user data ref: missing database or encoded email');
+        if (!homeDb || !this.encodedPhone) {
+            console.error('Cannot get user data ref: missing database or encoded phone');
             return null;
         }
 
-        const fullPath = `userData/${this.encodedEmail}${path ? '/' + path : ''}`;
+        const fullPath = `userData/${this.encodedPhone}${path ? '/' + path : ''}`;
         return homeDb.db.ref(fullPath);
     }
 
@@ -70,9 +70,9 @@ class DataManager {
         return this.masterDB.ref(path);
     }
 
-    // Encode email (same as auth module)
-    encodeEmail(email) {
-        return email.replace(/\./g, ',').replace(/@/g, '-at-');
+    // Encode phone (same as auth module)
+    encodePhone(phone) {
+        return phone.replace(/[^\d+]/g, '').replace(/\./g, ',').replace(/@/g, '-at-');
     }
 
     // Check if user is authenticated
@@ -83,8 +83,8 @@ class DataManager {
     // Update current user data
     updateCurrentUser(userData) {
         this.currentUser = userData;
-        if (userData?.email) {
-            this.encodedEmail = this.encodeEmail(userData.email);
+        if (userData?.phone) {
+            this.encodedPhone = this.encodePhone(userData.phone);
         }
     }
 }

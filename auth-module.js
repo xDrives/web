@@ -22,28 +22,30 @@ class AuthModule {
         this.authContainer = null;
         this.authForms = null;
         
-        // Add timeout configuration
+        // Timeout configuration
         this.TIMEOUT_DURATION = 30000; // 30 seconds
+        
+        // Ensure PhoneValidator is loaded
+        if (typeof PhoneValidator === 'undefined') {
+            console.error('PhoneValidator not loaded. Include phone-validator.js first.');
+        }
         
         this.init();
     }
     
-    // Utility method to add timeout to promises
+    // ========== TIMEOUT HELPERS (MUST KEEP) ==========
     withTimeout(promise, operationName = 'Operation') {
         let timeoutId;
-        
         const timeoutPromise = new Promise((_, reject) => {
             timeoutId = setTimeout(() => {
                 reject(new Error(`${operationName} timed out after ${this.TIMEOUT_DURATION/1000} seconds. Please check your internet connection and try again.`));
             }, this.TIMEOUT_DURATION);
         });
-        
         return Promise.race([promise, timeoutPromise]).finally(() => {
             clearTimeout(timeoutId);
         });
     }
     
-    // Wrapper for Firebase operations with timeout
     async firebaseOperation(promise, operationName) {
         try {
             return await this.withTimeout(promise, operationName);
@@ -56,6 +58,10 @@ class AuthModule {
         }
     }
     
+    // ==============================================
+    // (All other methods remain unchanged EXCEPT phone validation calls)
+    // ==============================================
+
     init() {
         // Initialize Firebase
         this.masterApp = firebase.initializeApp(this.masterConfig, "masterApp");
@@ -99,8 +105,8 @@ class AuthModule {
                                 const remainingDays = deactivationEnd ? 
                                     Math.ceil((deactivationEnd - Date.now()) / (24 * 60 * 60 * 1000)) : 0;
                                 
-                                // Clear auth data but keep email
-                                const lastEmail = localStorage.getItem('lastEmail');
+                                // Clear auth data but keep phone
+                                const lastPhone = localStorage.getItem('lastPhone');
                                 this.clearAuthData();
                                 
                                 // Show auth UI with cooldown message
@@ -117,8 +123,8 @@ class AuthModule {
                                 return;
                             }
                         } else if (verifiedStatus === 'suspended') {
-                            // Clear auth data but keep email
-                            const lastEmail = localStorage.getItem('lastEmail');
+                            // Clear auth data but keep phone
+                            const lastPhone = localStorage.getItem('lastPhone');
                             this.clearAuthData();
                             
                             // Show auth UI with message
@@ -145,8 +151,8 @@ class AuthModule {
                     if (this.currentUser.status === 'suspended' || this.currentUser.status === 'deactivated') {
                         console.warn(`Account is locally marked as ${this.currentUser.status}, forcing logout`);
                         
-                        // Clear auth data but keep email
-                        const lastEmail = localStorage.getItem('lastEmail');
+                        // Clear auth data but keep phone
+                        const lastPhone = localStorage.getItem('lastPhone');
                         this.clearAuthData();
                         
                         this.showAuthUI();
@@ -181,7 +187,7 @@ class AuthModule {
                     'Home database connection'
                 );
                 
-                console.log('User restored from localStorage:', this.currentUser.email);
+                console.log('User restored from localStorage:', this.currentUser.phone);
                 console.log('Home database URL:', this.userHomeDatabase);
                 
                 this.onAuthSuccess();
@@ -197,65 +203,15 @@ class AuthModule {
         }
     }
 
-    async checkAndShowDeactivationStatus(email) {
-        try {
-            if (!email) return;
-            
-            const encodedEmail = this.encodeEmail(email);
-            const snapshot = await this.firebaseOperation(
-                this.masterDB.ref('users/' + encodedEmail).once('value'),
-                'Checking deactivation status'
-            );
-            
-            if (!snapshot.exists()) return;
-            
-            const userData = snapshot.val();
-            
-            if (userData.status === 'deactivated' && userData.deactivationEnd) {
-                const remainingMs = userData.deactivationEnd - Date.now();
-                
-                if (remainingMs > 0) {
-                    const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
-                    const reactivationDate = new Date(userData.deactivationEnd).toLocaleDateString();
-                    
-                    document.getElementById('deactivation-status').classList.remove('hidden');
-                    document.getElementById('deactivation-message').textContent = 
-                        `Your account is deactivated for ${userData.deactivationDuration || 14} days. ` +
-                        `Will be automatically reactivated on ${reactivationDate} ` +
-                        `(${remainingDays} day(s) remaining).`;
-                    
-                    return true;
-                }
-            }
-        } catch (error) {
-            console.error('Error checking deactivation status:', error);
-        }
-        
-        document.getElementById('deactivation-status').classList.add('hidden');
-        return false;
-    }
-
-    // Call this when auto-filling email or email input changes
-    autoFillEmail() {
-        const rememberedEmail = localStorage.getItem('lastEmail');
-        const signinEmailInput = document.getElementById('signin-email');
-        
-        if (rememberedEmail && signinEmailInput) {
-            signinEmailInput.value = rememberedEmail;
-            // Check deactivation status for this email
-            this.checkAndShowDeactivationStatus(rememberedEmail);
-        }
-    }
-
 
     async getDeactivationEnd() {
-        if (!this.currentUser || !this.currentUser.email) return null;
+        if (!this.currentUser || !this.currentUser.phone) return null;
         
-        const encodedEmail = this.encodeEmail(this.currentUser.email);
+        const encodedPhone = this.encodePhone(this.currentUser.phone);
         
         // Fetch deactivation end timestamp from master database with timeout
         const snapshot = await this.firebaseOperation(
-            this.masterDB.ref(`users/${encodedEmail}/deactivationEnd`).once('value'),
+            this.masterDB.ref(`users/${encodedPhone}/deactivationEnd`).once('value'),
             'Getting deactivation end'
         );
         
@@ -266,7 +222,7 @@ class AuthModule {
         return null;
     }
 
-    async reactivateAccount(userData, encodedEmail) {
+    async reactivateAccount(userData, encodedPhone) {
         const updateData = {
             status: 'active',
             deactivationStart: null,
@@ -277,13 +233,13 @@ class AuthModule {
         };
         
         await this.firebaseOperation(
-            this.masterDB.ref('users/' + encodedEmail).update(updateData),
+            this.masterDB.ref('users/' + encodedPhone).update(updateData),
             'Reactivating account'
         );
         
         // Log reactivation
         await this.firebaseOperation(
-            this.masterDB.ref(`userActivity/${encodedEmail}/account_actions`).push({
+            this.masterDB.ref(`userActivity/${encodedPhone}/account_actions`).push({
                 type: 'account_reactivated_auto',
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 reason: 'cooldown_period_ended'
@@ -315,15 +271,15 @@ class AuthModule {
 
     // Add this method to the AuthModule class
     async verifyAccountStatusFromServer() {
-        if (!this.currentUser || !this.currentUser.email) {
+        if (!this.currentUser || !this.currentUser.phone) {
             throw new Error('No user data available for status verification');
         }
         
-        const encodedEmail = this.encodeEmail(this.currentUser.email);
+        const encodedPhone = this.encodePhone(this.currentUser.phone);
         
         // Fetch current status from master database with timeout
         const snapshot = await this.firebaseOperation(
-            this.masterDB.ref(`users/${encodedEmail}/status`).once('value'),
+            this.masterDB.ref(`users/${encodedPhone}/status`).once('value'),
             'Verifying account status'
         );
         
@@ -360,10 +316,10 @@ class AuthModule {
         return this.dbApps.find(db => db.app.name === name);
     }
 
-    // Get current user's encoded email
-    getEncodedEmail() {
-        if (!this.currentUser?.email) return null;
-        return this.encodeEmail(this.currentUser.email);
+    // Get current user's encoded phone
+    getEncodedPhone() {
+        if (!this.currentUser?.phone) return null;
+        return this.encodePhone(this.currentUser.phone);
     }
 
     // Notify all modules that auth is ready
@@ -372,7 +328,7 @@ class AuthModule {
             detail: {
                 user: this.currentUser,
                 homeDatabaseUrl: this.userHomeDatabase,
-                encodedEmail: this.encodeEmail(this.currentUser.email)
+                encodedPhone: this.encodePhone(this.currentUser.phone)
             }
         }));
     }
@@ -486,9 +442,10 @@ class AuthModule {
                         </div>
                         
                         <div class="form-group">
-                            <label class="form-label" for="signin-email">Email</label>
-                            <input type="email" id="signin-email" class="form-input" 
-                                placeholder="Enter your email" required>
+                            <label class="form-label" for="signin-phone">Phone Number</label>
+                            <input type="tel" id="signin-phone" class="form-input" 
+                                placeholder="Enter your phone number" required>
+                            <div id="signin-phone-status" class="phone-validator-status"></div>
                         </div>
                         
                         <div class="form-group">
@@ -542,9 +499,10 @@ class AuthModule {
                             </div>
                             
                             <div class="form-group">
-                                <label class="form-label" for="signup-email">Email *</label>
-                                <input type="email" id="signup-email" class="form-input" 
-                                    placeholder="Enter your email">
+                                <label class="form-label" for="signup-phone">Phone Number *</label>
+                                <input type="tel" id="signup-phone" class="form-input" 
+                                    placeholder="Enter phone number">
+                                <div id="signup-phone-status" class="phone-validator-status"></div>
                             </div>
                             
                             <div class="form-group">
@@ -580,8 +538,8 @@ class AuthModule {
 
                     <!-- Forgot Password Form -->
                     <div id="forgot-password-container" style="display: none;">
-                        <!-- Step 1: Email Verification -->
-                        <div id="step1-email" class="auth-form active">
+                        <!-- Step 1: Phone Verification -->
+                        <div id="step1-phone" class="auth-form active">
                             <div class="auth-form-header">
                                 <h2>Reset Password</h2>
                                 <a id="back-to-signin-from-forgot" class="back-link-modern">
@@ -591,19 +549,20 @@ class AuthModule {
                             
                             <div class="info-card-modern">
                                 <span class="material-icons">info</span>
-                                <p>Enter your email to start the password recovery process.</p>
+                                <p>Enter your phone number to start the password recovery process.</p>
                             </div>
                             
                             <div class="form-group">
-                                <label class="form-label" for="recovery-email">Email Address</label>
-                                <input type="email" id="recovery-email" class="form-input" 
-                                    placeholder="Enter your email" required>
+                                <label class="form-label" for="recovery-phone">Phone Number</label>
+                                <input type="tel" id="recovery-phone" class="form-input" 
+                                    placeholder="Enter your phone number" required>
+                                <div id="recovery-phone-status" class="phone-validator-status"></div>
                             </div>
                             
-                            <div id="recovery-email-error" class="alert error hidden"></div>
+                            <div id="recovery-phone-error" class="alert error hidden"></div>
                             
                             <div class="form-actions">
-                                <button id="verify-email-btn" class="btn btn-primary">
+                                <button id="verify-phone-btn" class="btn btn-primary">
                                     <i class="fas fa-arrow-right"></i> Continue
                                 </button>
                             </div>
@@ -613,7 +572,7 @@ class AuthModule {
                         <div id="step2-recovery-code" class="auth-form">
                             <div class="auth-form-header">
                                 <h2>Enter Recovery Code</h2>
-                                <a id="back-to-email" class="back-link-modern">
+                                <a id="back-to-phone" class="back-link-modern">
                                     <span class="material-icons">arrow_back</span> Back
                                 </a>
                             </div>
@@ -701,8 +660,8 @@ class AuthModule {
         // Setup event listeners
         this.setupAuthEventListeners();
         
-        // Auto-fill remembered email if any
-        this.autoFillEmail();
+        // Auto-fill remembered phone if any
+        this.autoFillPhone();
     }
     
     setupAuthEventListeners() {
@@ -747,14 +706,32 @@ class AuthModule {
         // Sign in button
         document.getElementById('signin-btn').addEventListener('click', () => this.handleSignin());
         
-        // Email input for deactivation check
-        const signinEmailInput = document.getElementById('signin-email');
-        if (signinEmailInput) {
-            signinEmailInput.addEventListener('input', (e) => {
-                const email = e.target.value.trim();
-                if (this.validateEmail(email)) {
-                    this.checkAndShowDeactivationStatus(email);
+        // ── REAL‑TIME PHONE VALIDATION (using PhoneValidator) ──
+        const signinPhone = document.getElementById('signin-phone');
+        if (signinPhone) {
+            signinPhone.addEventListener('input', () => {
+                PhoneValidator.updatePhoneValidation('signin-phone', 'signin-phone-status');
+                // Also update deactivation status if valid
+                const phone = signinPhone.value.trim();
+                if (PhoneValidator.validatePhone(phone).valid) {
+                    this.checkAndShowDeactivationStatus(phone);
+                } else {
+                    document.getElementById('deactivation-status')?.classList.add('hidden');
                 }
+            });
+        }
+        
+        const signupPhone = document.getElementById('signup-phone');
+        if (signupPhone) {
+            signupPhone.addEventListener('input', () => {
+                PhoneValidator.updatePhoneValidation('signup-phone', 'signup-phone-status');
+            });
+        }
+        
+        const recoveryPhone = document.getElementById('recovery-phone');
+        if (recoveryPhone) {
+            recoveryPhone.addEventListener('input', () => {
+                PhoneValidator.updatePhoneValidation('recovery-phone', 'recovery-phone-status');
             });
         }
         
@@ -765,8 +742,8 @@ class AuthModule {
                     this.handleSignup();
                 } else if (document.getElementById('signin-form').classList.contains('active')) {
                     this.handleSignin();
-                } else if (document.getElementById('step1-email')?.classList.contains('active')) {
-                    this.verifyEmailForRecovery();
+                } else if (document.getElementById('step1-phone')?.classList.contains('active')) {
+                    this.verifyPhoneForRecovery();
                 } else if (document.getElementById('step2-recovery-code')?.classList.contains('active')) {
                     this.verifyRecoveryCode();
                 } else if (document.getElementById('step3-reset-password')?.classList.contains('active')) {
@@ -791,7 +768,7 @@ class AuthModule {
         }
         
         // Show step 1 by default
-        this.showRecoveryStep('step1-email');
+        this.showRecoveryStep('step1-phone');
         
         this.clearAuthMessages();
         
@@ -802,22 +779,22 @@ class AuthModule {
     setupForgotPasswordStepListeners() {
         console.log('Setting up forgot password step listeners');
         
-        // Step 1: Email verification
-        const verifyEmailBtn = document.getElementById('verify-email-btn');
-        if (verifyEmailBtn) {
+        // Step 1: Phone verification
+        const verifyPhoneBtn = document.getElementById('verify-phone-btn');
+        if (verifyPhoneBtn) {
             // Remove any existing listeners to prevent duplicates
-            verifyEmailBtn.removeEventListener('click', this.boundVerifyEmail);
-            this.boundVerifyEmail = () => this.verifyEmailForRecovery();
-            verifyEmailBtn.addEventListener('click', this.boundVerifyEmail);
+            verifyPhoneBtn.removeEventListener('click', this.boundVerifyPhone);
+            this.boundVerifyPhone = () => this.verifyPhoneForRecovery();
+            verifyPhoneBtn.addEventListener('click', this.boundVerifyPhone);
         }
         
-        const recoveryEmail = document.getElementById('recovery-email');
-        if (recoveryEmail) {
-            recoveryEmail.removeEventListener('keypress', this.boundRecoveryEmailKeypress);
-            this.boundRecoveryEmailKeypress = (e) => {
-                if (e.key === 'Enter') this.verifyEmailForRecovery();
+        const recoveryPhone = document.getElementById('recovery-phone');
+        if (recoveryPhone) {
+            recoveryPhone.removeEventListener('keypress', this.boundRecoveryPhoneKeypress);
+            this.boundRecoveryPhoneKeypress = (e) => {
+                if (e.key === 'Enter') this.verifyPhoneForRecovery();
             };
-            recoveryEmail.addEventListener('keypress', this.boundRecoveryEmailKeypress);
+            recoveryPhone.addEventListener('keypress', this.boundRecoveryPhoneKeypress);
         }
         
         // Step 2: Recovery code verification
@@ -853,11 +830,11 @@ class AuthModule {
         }
         
         // Navigation buttons
-        const backToEmail = document.getElementById('back-to-email');
-        if (backToEmail) {
-            backToEmail.removeEventListener('click', this.boundBackToEmail);
-            this.boundBackToEmail = () => this.showRecoveryStep('step1-email');
-            backToEmail.addEventListener('click', this.boundBackToEmail);
+        const backToPhone = document.getElementById('back-to-phone');
+        if (backToPhone) {
+            backToPhone.removeEventListener('click', this.boundBackToPhone);
+            this.boundBackToPhone = () => this.showRecoveryStep('step1-phone');
+            backToPhone.addEventListener('click', this.boundBackToPhone);
         }
         
         const lostCodesLink = document.getElementById('lost-codes-link');
@@ -914,7 +891,7 @@ class AuthModule {
             if (formType === 'signup') {
                 firstInput = document.getElementById('signup-name');
             } else if (formType === 'signin') {
-                firstInput = document.getElementById('signin-email');
+                firstInput = document.getElementById('signin-phone');
             }
             if (firstInput) firstInput.focus();
         }, 100);
@@ -950,12 +927,11 @@ class AuthModule {
     // UTILITY FUNCTIONS
     // ==============================================
     
-    encodeEmail(email) {
-        return email.replace(/\./g, ',').replace(/@/g, '-at-');
-    }
-    
-    validateEmail(email) {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    encodePhone(phone) {
+        // Remove all non-digit characters except leading '+'
+        const cleaned = phone.replace(/[^\d+]/g, '');
+        // Replace '.' and '@' not needed, but we keep for compatibility
+        return cleaned.replace(/\./g, ',').replace(/@/g, '-at-');
     }
     
     validatePassword(password) {
@@ -965,14 +941,13 @@ class AuthModule {
     getFormData(formType) {
         if (formType === 'signin') {
             return {
-                email: document.getElementById('signin-email').value.trim(),
+                phone: document.getElementById('signin-phone').value.trim(),
                 password: document.getElementById('signin-password').value.trim()
             };
         } else if (formType === 'signup') {
             return {
                 name: document.getElementById('signup-name').value.trim(),
-                email: document.getElementById('signup-email').value.trim(),
-                phone: '',
+                phone: document.getElementById('signup-phone').value.trim(),
                 password: document.getElementById('signup-password').value.trim(),
                 confirm: document.getElementById('signup-confirm').value.trim()
             };
@@ -1013,7 +988,7 @@ class AuthModule {
             button.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
         } else if (buttonId === 'signup-btn') {
             button.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';
-        } else if (buttonId === 'verify-email-btn') {
+        } else if (buttonId === 'verify-phone-btn') {
             button.innerHTML = '<i class="fas fa-arrow-right"></i> Continue';
         } else if (buttonId === 'verify-code-btn') {
             button.innerHTML = '<i class="fas fa-check-circle"></i> Verify Code';
@@ -1029,7 +1004,7 @@ class AuthModule {
         switch(buttonId) {
             case 'signin-btn': return document.getElementById('signin-error');
             case 'signup-btn': return document.getElementById('signup-error');
-            case 'verify-email-btn': return document.getElementById('recovery-email-error');
+            case 'verify-phone-btn': return document.getElementById('recovery-phone-error');
             case 'verify-code-btn': return document.getElementById('recovery-code-error');
             case 'reset-password-btn': return document.getElementById('reset-error');
             case 'forgot-submit-btn': return document.getElementById('forgot-error');
@@ -1107,7 +1082,7 @@ class AuthModule {
         }
     }
     
-    async findAvailableDatabase(availableDbs, encodedEmail) {
+    async findAvailableDatabase(availableDbs, encodedPhone) {
         for (const dbObj of availableDbs) {
             const snapshot = await this.firebaseOperation(
                 dbObj.db.ref('userData').once('value'),
@@ -1119,7 +1094,7 @@ class AuthModule {
                 try {
                     // Create empty userData node for the new user
                     await this.firebaseOperation(
-                        dbObj.db.ref(`userData/${encodedEmail}`).set({
+                        dbObj.db.ref(`userData/${encodedPhone}`).set({
                             photos: {},
                             notes: {},
                             files: {},
@@ -1221,27 +1196,25 @@ class AuthModule {
     
     async handleSignup() {
         const formData = this.getFormData('signup');
-        const { name, email, phone, password, confirm } = formData;
+        const { name, phone, password, confirm } = formData;
         
         // Clear previous messages
         this.clearAuthMessages();
         
         // Basic validation
-        if (!name || !email || !password || !confirm) {
+        if (!name || !phone || !password || !confirm) {
             this.showAuthError('signup-error', 'Please fill in all required fields');
             return;
         }
         
-        if (!this.validateEmail(email)) {
-            this.showAuthError('signup-error', 'Please enter a valid email address');
+        // Use PhoneValidator
+        const phoneValidation = PhoneValidator.validatePhone(phone);
+        if (!phoneValidation.valid) {
+            this.showAuthError('signup-error', 'Please enter a valid Bangladesh phone number: ' + phoneValidation.reason);
             return;
         }
-
-        if (!this.validatePassword(password)) {
-            this.showAuthError('signup-error', 'Password must be at least 6 characters');
-            return;
-        }
-        
+        const encodedPhone = this.encodePhone(phoneValidation.normalized);
+                
         if (password !== confirm) {
             this.showAuthError('signup-error', 'Passwords do not match');
             return;
@@ -1250,17 +1223,14 @@ class AuthModule {
         try {
             this.setButtonLoading('signup-btn', true, 'Creating account...');
             
-            const encodedEmail = this.encodeEmail(email);
-            const formattedPhone = phone.replace(/\D/g, '');
-            
             // Check if user already exists with timeout
             const masterSnapshot = await this.firebaseOperation(
-                this.masterDB.ref('users/' + encodedEmail).once('value'),
+                this.masterDB.ref('users/' + encodedPhone).once('value'),
                 'Checking existing user'
             );
             
             if (masterSnapshot.exists()) {
-                this.showAuthError('signup-error', 'Email already registered');
+                this.showAuthError('signup-error', 'Phone number already registered');
                 this.setButtonLoading('signup-btn', false);
                 return;
             }
@@ -1286,8 +1256,7 @@ class AuthModule {
             // Prepare user data
             const userData = {
                 name: name,
-                email: email,
-                phone: formattedPhone,
+                phone: phone,
                 password: password,
                 createdAt: firebase.database.ServerValue.TIMESTAMP,
                 lastLogin: firebase.database.ServerValue.TIMESTAMP,
@@ -1300,7 +1269,7 @@ class AuthModule {
             
             // Find available database for userData with timeout
             let homeDatabaseInfo = await this.firebaseOperation(
-                this.findAvailableDatabase(availableDbs, encodedEmail),
+                this.findAvailableDatabase(availableDbs, encodedPhone),
                 'Finding available database'
             );
             
@@ -1316,7 +1285,7 @@ class AuthModule {
             
             // Create user in master database WITH RECOVERY CODES
             await this.firebaseOperation(
-                this.masterDB.ref('users/' + encodedEmail).set(userData),
+                this.masterDB.ref('users/' + encodedPhone).set(userData),
                 'Creating user account'
             );
             
@@ -1330,7 +1299,7 @@ class AuthModule {
             
             // Save user data and database info to localStorage
             localStorage.setItem('currentUser', JSON.stringify(userData));
-            localStorage.setItem('lastEmail', email);
+            localStorage.setItem('lastPhone', phone);
             this.saveDatabaseConfigsToStorage();
             localStorage.setItem('userHomeDatabaseUrl', homeDatabaseInfo.url);
             
@@ -1341,6 +1310,7 @@ class AuthModule {
             // Download recovery codes (no print)
             this.downloadRecoveryCodes(recoveryCodes);
             
+            localStorage.setItem('authToken', phone);
             // Proceed to main app
             this.onAuthSuccess();
             
@@ -1362,35 +1332,36 @@ class AuthModule {
     
     async handleSignin() {
         const formData = this.getFormData('signin');
-        const { email, password } = formData;
+        const { phone, password } = formData;
         
         // Clear previous errors
         this.clearAuthMessages();
         
         // Basic validation
-        if (!email || !password) {
-            this.showAuthError('signin-error', 'Please enter email and password');
+        if (!phone || !password) {
+            this.showAuthError('signin-error', 'Please enter phone number and password');
             return;
         }
         
-        if (!this.validateEmail(email)) {
-            this.showAuthError('signin-error', 'Please enter a valid email address');
+        // Use PhoneValidator
+        const phoneValidation = PhoneValidator.validatePhone(phone);
+        if (!phoneValidation.valid) {
+            this.showAuthError('signin-error', 'Please enter a valid Bangladesh phone number: ' + phoneValidation.reason);
             return;
         }
-        
+        const encodedPhone = this.encodePhone(phoneValidation.normalized);
+
         try {
             this.setButtonLoading('signin-btn', true, 'Signing in...');
             
-            const encodedEmail = this.encodeEmail(email);
-            
             // Look up user in master database with timeout
             const masterSnapshot = await this.firebaseOperation(
-                this.masterDB.ref('users/' + encodedEmail).once('value'),
+                this.masterDB.ref('users/' + encodedPhone).once('value'),
                 'User lookup'
             );
 
             if (!masterSnapshot.exists()) {
-                // User not found - switch to signup form with email pre-filled
+                // User not found - switch to signup form with phone pre-filled
                 this.setButtonLoading('signin-btn', false);
                 
                 // Show error briefly
@@ -1401,13 +1372,13 @@ class AuthModule {
                     // Switch to signup form
                     this.showForm('signup');
                     
-                    // Pre-fill the email in signup form
-                    const signupEmailInput = document.getElementById('signup-email');
-                    if (signupEmailInput) {
-                        signupEmailInput.value = email;
+                    // Pre-fill the phone in signup form
+                    const signupPhoneInput = document.getElementById('signup-phone');
+                    if (signupPhoneInput) {
+                        signupPhoneInput.value = phone;
                     }
                     
-                    // Focus on name field or keep email field focused
+                    // Focus on name field or keep phone field focused
                     const signupNameInput = document.getElementById('signup-name');
                     if (signupNameInput) {
                         signupNameInput.focus();
@@ -1440,7 +1411,7 @@ class AuthModule {
                     return;
                 } else {
                     // Cooldown period has ended, auto-reactivate
-                    await this.reactivateAccount(userData, encodedEmail);
+                    await this.reactivateAccount(userData, encodedPhone);
                     console.log('Account auto-reactivated after cooldown period');
                 }
             }
@@ -1483,7 +1454,7 @@ class AuthModule {
                 
                 // Find available database for this user with timeout
                 const availableDb = await this.firebaseOperation(
-                    this.findAvailableDatabase(this.dbApps, encodedEmail),
+                    this.findAvailableDatabase(this.dbApps, encodedPhone),
                     'Finding available database'
                 );
                 
@@ -1496,7 +1467,7 @@ class AuthModule {
                 // Update user's home database URL in master DB
                 homeDatabaseUrl = availableDb.url;
                 await this.firebaseOperation(
-                    this.masterDB.ref('users/' + encodedEmail).update({
+                    this.masterDB.ref('users/' + encodedPhone).update({
                         homeDatabaseUrl: availableDb.url,
                         homeDatabaseName: availableDb.name,
                         updatedAt: firebase.database.ServerValue.TIMESTAMP
@@ -1513,7 +1484,7 @@ class AuthModule {
 
             // Update last login
             await this.firebaseOperation(
-                this.masterDB.ref('users/' + encodedEmail).update({
+                this.masterDB.ref('users/' + encodedPhone).update({
                     lastLogin: firebase.database.ServerValue.TIMESTAMP,
                     loginCount: (userData.loginCount || 0) + 1
                 }),
@@ -1526,12 +1497,8 @@ class AuthModule {
             
             // Save to localStorage
             localStorage.setItem('currentUser', JSON.stringify(userData));
-            localStorage.setItem('lastEmail', email);
-
-            // After login success
-            localStorage.setItem('currentUser', JSON.stringify({ email: user.email }));
-            localStorage.setItem('authToken', 'true');   // or a real JWT/Firebase ID token
-                        
+            localStorage.setItem('lastPhone', phone);
+              
             // Save database configurations to localStorage
             this.saveDatabaseConfigsToStorage();
             
@@ -1546,9 +1513,10 @@ class AuthModule {
                 'Home database connection'
             );
             
-            console.log(`User signed in: ${email}`);
+            console.log(`User signed in: ${phone}`);
             console.log('Home database URL:', this.userHomeDatabase);
             
+            localStorage.setItem('authToken', phone);
             // Success - show main app
             this.onAuthSuccess();
             
@@ -1599,28 +1567,54 @@ class AuthModule {
                     };
                     
                     this.dbApps.push(dbEntry);
-                    homeDb = dbEntry;
-                    
-                    console.log(`Home database initialized: ${this.userHomeDatabase}`);
+                    // Since we used 'const' we need to assign to a variable
+                    // Let's find it again
+                    const newHomeDb = this.dbApps.find(d => d.url === this.userHomeDatabase);
+                    if (newHomeDb) {
+                        // Ensure user data exists
+                        const encodedPhone = this.encodePhone(this.currentUser.phone);
+                        const userDataSnapshot = await this.firebaseOperation(
+                            newHomeDb.db.ref(`userData/${encodedPhone}`).once('value'),
+                            'Checking user data'
+                        );
+                        
+                        if (!userDataSnapshot.exists()) {
+                            // Create user data entry
+                            await this.firebaseOperation(
+                                newHomeDb.db.ref(`userData/${encodedPhone}`).set({
+                                    photos: {},
+                                    notes: {},
+                                    files: {},
+                                    storage: {
+                                        used: 0,
+                                        total: 0
+                                    },
+                                    createdAt: firebase.database.ServerValue.TIMESTAMP,
+                                    updatedAt: firebase.database.ServerValue.TIMESTAMP
+                                }),
+                                'Creating user data'
+                            );
+                            
+                            console.log('User data created in home database');
+                        }
+                        return newHomeDb;
+                    }
                 } catch (error) {
                     console.error(`Failed to initialize home database: ${this.userHomeDatabase}`, error);
                     return null;
                 }
-            }
-            
-            // Ensure user data exists in home database
-            const encodedEmail = this.encodeEmail(this.currentUser.email);
-            
-            if (homeDb) {
+            } else {
+                // Ensure user data exists in home database
+                const encodedPhone = this.encodePhone(this.currentUser.phone);
                 const userDataSnapshot = await this.firebaseOperation(
-                    homeDb.db.ref(`userData/${encodedEmail}`).once('value'),
+                    homeDb.db.ref(`userData/${encodedPhone}`).once('value'),
                     'Checking user data'
                 );
                 
                 if (!userDataSnapshot.exists()) {
                     // Create user data entry
                     await this.firebaseOperation(
-                        homeDb.db.ref(`userData/${encodedEmail}`).set({
+                        homeDb.db.ref(`userData/${encodedPhone}`).set({
                             photos: {},
                             notes: {},
                             files: {},
@@ -1636,10 +1630,10 @@ class AuthModule {
                     
                     console.log('User data created in home database');
                 }
+                return homeDb;
             }
             
-            return homeDb;
-            
+            return null;
         } catch (error) {
             console.error('Error initializing home database:', error);
             return null;
@@ -1714,7 +1708,7 @@ class AuthModule {
             detail: {
                 user: this.currentUser,
                 homeDatabaseUrl: this.userHomeDatabase,
-                encodedEmail: this.encodeEmail(this.currentUser.email)
+                encodedPhone: this.encodePhone(this.currentUser.phone)
             }
         }));
         
@@ -1915,12 +1909,13 @@ class AuthModule {
     logout() {
         console.log('Logging out...');
         
-        // Clear user data but keep email for convenience
-        const lastEmail = localStorage.getItem('lastEmail');
+        // Clear user data but keep phone for convenience
+        const lastPhone = localStorage.getItem('lastPhone');
         
         // Clear all authentication-related items
         const itemsToRemove = [
             'currentUser',
+            'authToken', 
             'masterDBConfig',
             'availableDBs',
             'userHomeDatabase',
@@ -1937,9 +1932,9 @@ class AuthModule {
         // Clear all module data
         this.clearAllModuleData();
         
-        // Restore last email if exists
-        if (lastEmail) {
-            localStorage.setItem('lastEmail', lastEmail);
+        // Restore last phone if exists
+        if (lastPhone) {
+            localStorage.setItem('lastPhone', lastPhone);
         }
         
         // On logout
@@ -1989,25 +1984,25 @@ class AuthModule {
                 </div>
                 
                 <div class="auth-card">
-                    <!-- Step 1: Email Verification -->
-                    <div id="step1-email" class="auth-form active">
+                    <!-- Step 1: Phone Verification -->
+                    <div id="step1-phone" class="auth-form active">
                         <div class="form-header">
-                            <h2>Step 1: Verify Your Email</h2>
+                            <h2>Step 1: Verify Your Phone</h2>
                         </div>
                         
                         <div class="form-description">
-                            <p>Enter your email address to start the password recovery process.</p>
+                            <p>Enter your phone number to start the password recovery process.</p>
                         </div>
                         
                         <div class="form-group floating">
-                            <input type="email" id="recovery-email" placeholder=" " required>
-                            <label for="recovery-email">Email Address</label>
+                            <input type="tel" id="recovery-phone" placeholder=" " required>
+                            <label for="recovery-phone">Phone Number</label>
                         </div>
                         
-                        <div id="recovery-email-error" class="alert error hidden"></div>
+                        <div id="recovery-phone-error" class="alert error hidden"></div>
                         
                         <div class="form-actions">
-                            <button id="verify-email-btn" class="btn btn-primary">
+                            <button id="verify-phone-btn" class="btn btn-primary">
                                 <i class="fas fa-arrow-right"></i> Continue
                             </button>
                         </div>
@@ -2021,7 +2016,7 @@ class AuthModule {
                     <div id="step2-recovery-code" class="auth-form">
                         <div class="form-header">
                             <h2>Step 2: Enter Recovery Code</h2>
-                            <a id="back-to-email" class="back-link">
+                            <a id="back-to-phone" class="back-link">
                                 <span class="material-icons">keyboard_arrow_left</span> Back
                             </a>
                         </div>
@@ -2089,10 +2084,10 @@ class AuthModule {
     }
 
     setupRecoveryProcessListeners() {
-        // Step 1: Email verification
-        document.getElementById('verify-email-btn').addEventListener('click', () => this.verifyEmailForRecovery());
-        document.getElementById('recovery-email').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.verifyEmailForRecovery();
+        // Step 1: Phone verification
+        document.getElementById('verify-phone-btn').addEventListener('click', () => this.verifyPhoneForRecovery());
+        document.getElementById('recovery-phone').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.verifyPhoneForRecovery();
         });
         
         // Step 2: Recovery code verification
@@ -2105,7 +2100,7 @@ class AuthModule {
         document.getElementById('reset-password-btn').addEventListener('click', () => this.resetPasswordWithCode());
         
         // Navigation
-        document.getElementById('back-to-email').addEventListener('click', () => this.showRecoveryStep('step1-email'));
+        document.getElementById('back-to-phone').addEventListener('click', () => this.showRecoveryStep('step1-phone'));
         document.getElementById('back-to-signin').addEventListener('click', () => this.showForm('signin'));
         document.getElementById('lost-codes-link').addEventListener('click', () => this.handleLostRecoveryCodes());
         
@@ -2143,8 +2138,8 @@ class AuthModule {
         // Focus on first input of the step
         setTimeout(() => {
             let firstInput;
-            if (stepId === 'step1-email') {
-                firstInput = document.getElementById('recovery-email');
+            if (stepId === 'step1-phone') {
+                firstInput = document.getElementById('recovery-phone');
             } else if (stepId === 'step2-recovery-code') {
                 firstInput = document.getElementById('recovery-code');
             } else if (stepId === 'step3-reset-password') {
@@ -2155,7 +2150,7 @@ class AuthModule {
     }
 
     clearRecoveryMessages() {
-        const errorIds = ['recovery-email-error', 'recovery-code-error', 'reset-error'];
+        const errorIds = ['recovery-phone-error', 'recovery-code-error', 'reset-error'];
         errorIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
@@ -2168,35 +2163,36 @@ class AuthModule {
         });
     }
 
-    async verifyEmailForRecovery() {
-        const email = document.getElementById('recovery-email').value.trim();
+    async verifyPhoneForRecovery() {
+        const phone = document.getElementById('recovery-phone').value.trim();
         
         this.clearRecoveryMessages();
         
-        if (!email) {
-            this.showAuthError('recovery-email-error', 'Please enter your email address');
+        if (!phone) {
+            this.showAuthError('recovery-phone-error', 'Please enter your phone number');
             return;
         }
         
-        if (!this.validateEmail(email)) {
-            this.showAuthError('recovery-email-error', 'Please enter a valid email address');
+        // Use PhoneValidator
+        const phoneValidation = PhoneValidator.validatePhone(phone);
+        if (!phoneValidation.valid) {
+            this.showAuthError('recovery-phone-error', 'Please enter a valid Bangladesh phone number: ' + phoneValidation.reason);
             return;
         }
-        
+        const encodedPhone = this.encodePhone(phoneValidation.normalized);
+                
         try {
-            this.setButtonLoading('verify-email-btn', true, 'Verifying...');
-            
-            const encodedEmail = this.encodeEmail(email);
+            this.setButtonLoading('verify-phone-btn', true, 'Verifying...');
             
             // Check if user exists with timeout
             const userSnapshot = await this.firebaseOperation(
-                this.masterDB.ref('users/' + encodedEmail).once('value'),
+                this.masterDB.ref('users/' + encodedPhone).once('value'),
                 'Checking user existence'
             );
             
             if (!userSnapshot.exists()) {
-                this.showAuthError('recovery-email-error', 'No account found with this email');
-                this.setButtonLoading('verify-email-btn', false);
+                this.showAuthError('recovery-phone-error', 'No account found with this phone number');
+                this.setButtonLoading('verify-phone-btn', false);
                 return;
             }
             
@@ -2204,41 +2200,41 @@ class AuthModule {
             
             // Check if user has recovery codes
             if (!userData.recoveryCodes || userData.recoveryCodes.length === 0) {
-                this.showAuthError('recovery-email-error', 
+                this.showAuthError('recovery-phone-error', 
                     'No recovery codes found for this account. Please contact support.');
-                this.setButtonLoading('verify-email-btn', false);
+                this.setButtonLoading('verify-phone-btn', false);
                 return;
             }
             
             // Check if any recovery codes are still available
             const availableCodes = userData.recoveryCodes.filter(code => !code.used);
             if (availableCodes.length === 0) {
-                this.showAuthError('recovery-email-error', 
+                this.showAuthError('recovery-phone-error', 
                     'All recovery codes have been used. Please generate new codes or contact support.');
-                this.setButtonLoading('verify-email-btn', false);
+                this.setButtonLoading('verify-phone-btn', false);
                 return;
             }
             
-            // Store email for next steps
-            this.recoveryEmail = email;
-            this.recoveryEncodedEmail = encodedEmail;
+            // Store phone for next steps
+            this.recoveryPhone = phone;
+            this.recoveryEncodedPhone = encodedPhone;
             
             // Show success and move to next step
-            this.setButtonLoading('verify-email-btn', false);
+            this.setButtonLoading('verify-phone-btn', false);
             this.showRecoveryStep('step2-recovery-code');
             
         } catch (error) {
-            console.error('Email verification error:', error);
+            console.error('Phone verification error:', error);
             
             // Check if it's a timeout error
             if (error.message.includes('timed out') || error.message.includes('Connection timeout')) {
-                this.showAuthError('recovery-email-error', 
+                this.showAuthError('recovery-phone-error', 
                     'Connection timeout. Please check your internet connection and try again.');
             } else {
-                this.showAuthError('recovery-email-error', 'Error: ' + error.message);
+                this.showAuthError('recovery-phone-error', 'Error: ' + error.message);
             }
             
-            this.setButtonLoading('verify-email-btn', false);
+            this.setButtonLoading('verify-phone-btn', false);
         }
     }
 
@@ -2257,7 +2253,7 @@ class AuthModule {
             
             // Fetch user data again with timeout
             const userSnapshot = await this.firebaseOperation(
-                this.masterDB.ref('users/' + this.recoveryEncodedEmail).once('value'),
+                this.masterDB.ref('users/' + this.recoveryEncodedPhone).once('value'),
                 'Fetching user data'
             );
             const userData = userSnapshot.val();
@@ -2333,7 +2329,7 @@ class AuthModule {
             
             // Update password and mark recovery code as used
             await this.firebaseOperation(
-                this.masterDB.ref('users/' + this.recoveryEncodedEmail).update({
+                this.masterDB.ref('users/' + this.recoveryEncodedPhone).update({
                     password: newPassword,
                     recoveryCodes: this.tempUserData.recoveryCodes,
                     updatedAt: firebase.database.ServerValue.TIMESTAMP,
@@ -2345,8 +2341,8 @@ class AuthModule {
             // Log the reset action
             await this.firebaseOperation(
                 this.masterDB.ref('userLogs/passwordResets').push({
-                    email: this.recoveryEmail,
-                    encodedEmail: this.recoveryEncodedEmail,
+                    phone: this.recoveryPhone,
+                    encodedPhone: this.recoveryEncodedPhone,
                     usedRecoveryCode: this.recoveryCode,
                     resetAt: firebase.database.ServerValue.TIMESTAMP,
                     ipAddress: await this.getClientIP(),
@@ -2361,12 +2357,12 @@ class AuthModule {
             
             this.setButtonLoading('reset-password-btn', false);
             
-            // Save email for auto-fill
-            localStorage.setItem('lastEmail', this.recoveryEmail);
+            // Save phone for auto-fill
+            localStorage.setItem('lastPhone', this.recoveryPhone);
             
             // Clear temporary data
-            this.recoveryEmail = null;
-            this.recoveryEncodedEmail = null;
+            this.recoveryPhone = null;
+            this.recoveryEncodedPhone = null;
             this.recoveryCode = null;
             this.recoveryCodeIndex = null;
             this.tempUserData = null;
@@ -2377,11 +2373,11 @@ class AuthModule {
             // IMPORTANT: Re-render the entire auth UI to show sign in form
             this.renderAuthUI();
             
-            // Auto-fill email in sign in form
+            // Auto-fill phone in sign in form
             setTimeout(() => {
-                const signinEmailInput = document.getElementById('signin-email');
-                if (signinEmailInput && this.recoveryEmail) {
-                    signinEmailInput.value = this.recoveryEmail;
+                const signinPhoneInput = document.getElementById('signin-phone');
+                if (signinPhoneInput && this.recoveryPhone) {
+                    signinPhoneInput.value = this.recoveryPhone;
                 }
                 
                 // Clear password field
@@ -2421,13 +2417,6 @@ class AuthModule {
         this.showAuthError('recovery-code-error', 
             'If you have lost all recovery codes, please contact support at support@xDrive.example.com ' +
             'with your account details for identity verification.');
-        
-        // Optional: Implement account recovery via support with additional verification
-        // This could include:
-        // 1. Security questions (if user set them up)
-        // 2. Phone verification via SMS
-        // 3. Email verification with admin approval
-        // 4. Document verification for sensitive accounts
     }
 
 
@@ -2625,6 +2614,55 @@ class AuthModule {
         strengthText.style.color = color;
     }
 
+    async checkAndShowDeactivationStatus(phone) {
+        if (!phone) return false;
+        // Validate phone number before checking status using PhoneValidator
+        const validation = PhoneValidator.validatePhone(phone);
+        if (!validation.valid) return false;
+        const encodedPhone = this.encodePhone(validation.normalized);
+
+        try {
+            const snapshot = await this.firebaseOperation(
+                this.masterDB.ref('users/' + encodedPhone).once('value'),
+                'Checking deactivation status'
+            );
+            if (!snapshot.exists()) return false;
+            const userData = snapshot.val();
+
+            if (userData.status === 'deactivated' && userData.deactivationEnd) {
+                const remainingMs = userData.deactivationEnd - Date.now();
+                if (remainingMs > 0) {
+                    const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+                    const reactivationDate = new Date(userData.deactivationEnd).toLocaleDateString();
+
+                    document.getElementById('deactivation-status').classList.remove('hidden');
+                    document.getElementById('deactivation-message').textContent = 
+                        `Your account is deactivated for ${userData.deactivationDuration || 14} days. ` +
+                        `Will be automatically reactivated on ${reactivationDate} ` +
+                        `(${remainingDays} day(s) remaining).`;
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('Error checking deactivation status:', error);
+        }
+        document.getElementById('deactivation-status').classList.add('hidden');
+        return false;
+    }
+
+    autoFillPhone() {
+        const rememberedPhone = localStorage.getItem('lastPhone');
+        const signinPhoneInput = document.getElementById('signin-phone');
+        if (rememberedPhone && signinPhoneInput) {
+            signinPhoneInput.value = rememberedPhone;
+            // Trigger real-time validation using PhoneValidator
+            PhoneValidator.updatePhoneValidation('signin-phone', 'signin-phone-status');
+            const validation = PhoneValidator.validatePhone(rememberedPhone);
+            if (validation.valid) {
+                this.checkAndShowDeactivationStatus(validation.normalized);
+            }
+        }
+    }
 }
 
 // Initialize auth module
