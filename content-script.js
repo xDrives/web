@@ -416,7 +416,7 @@ function isLinkAccessible(data) {
     return true;
 }
 
-// ========== LOAD LINK (no allowed‑user logic) ==========
+// ========== LOAD LINK ==========
 async function loadLink() {
     if (!linkId) { showError('Invalid link: missing content ID.', true); return; }
     document.getElementById('loading').style.display = 'block';
@@ -462,6 +462,7 @@ async function viewOpenContent() {
     } 
 }
 
+// ========== UNLOCK WITH PLAIN TEXT PASSWORD ==========
 async function verifyAndUnlock() {
     if(isContentDisplayed) return;
     if (!linkData.hasPassword) {
@@ -474,8 +475,8 @@ async function verifyAndUnlock() {
     document.getElementById('loading').style.display='block'; 
     document.getElementById('unlockBtn').disabled=true;
     try{
-        const enteredHash = await hashPassword(pwd);
-        if(enteredHash === linkData.passwordHash){ 
+        // Compare plain text password directly
+        if(pwd === linkData.password){ 
             await displayContent(); 
         } else { 
             showError('Incorrect password. Try again.'); 
@@ -489,6 +490,7 @@ async function verifyAndUnlock() {
     }
 }
 
+// (Optional) hash function – kept for potential other uses, but NOT used for password verification.
 async function hashPassword(password) {
     const encoder = new TextEncoder();
     const data = encoder.encode(password);
