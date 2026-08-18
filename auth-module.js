@@ -8,7 +8,7 @@
 
 // Replace this URL with your published Google Apps Script Web App URL
 // The script should return JSON: { "databaseURL": "https://..." }
-const MASTER_CONFIG_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+const MASTER_CONFIG_URL = 'https://script.google.com/macros/s/AKfycbwhGMTeNAQJ38jWhjKEpKGoSGtju73WgZfxvlDCGY2vrc534Xnp-HgqzYY__D2ewSN7/exec';
 
 class AuthModule {
     constructor() {
@@ -44,15 +44,10 @@ class AuthModule {
                 } else {
                     // Fallback (optional) – you may want to show an error instead
                     console.warn('Using fallback config – please check your Apps Script URL');
-                    this.masterConfig = { databaseURL: 'https://admin-efcf4-default-rtdb.europe-west1.firebasedatabase.app/' };
-                    this.init();
                 }
             })
             .catch(err => {
                 console.error('Failed to load master config:', err);
-                // Use fallback only if absolutely necessary
-                this.masterConfig = { databaseURL: 'https://admin-efcf4-default-rtdb.europe-west1.firebasedatabase.app/' };
-                this.init();
             });
     }
 
