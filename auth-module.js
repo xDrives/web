@@ -2,13 +2,18 @@
 // AUTHENTICATION MODULE - INTEGRATED INTO INDEX.HTML
 // ==============================================
 
+// ==============================================
+// CONFIGURATION - FETCHED EXTERNALLY
+// ==============================================
+
+// Replace this URL with your published Google Apps Script Web App URL
+// The script should return JSON: { "databaseURL": "https://..." }
+const MASTER_CONFIG_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+
 class AuthModule {
     constructor() {
-        // Firebase configuration
-        this.masterConfig = { 
-            databaseURL: "https://admin-efcf4-default-rtdb.europe-west1.firebasedatabase.app/" 
-        };
-        
+        // Firebase configuration (will be set after fetch)
+        this.masterConfig = null;
         this.masterApp = null;
         this.masterDB = null;
         this.dbApps = [];
@@ -30,9 +35,58 @@ class AuthModule {
             console.error('PhoneValidator not loaded. Include phone-validator.js first.');
         }
         
-        this.init();
+        // Load config asynchronously, then initialize Firebase
+        this.loadMasterConfig()
+            .then(config => {
+                if (config) {
+                    this.masterConfig = config;
+                    this.init();
+                } else {
+                    // Fallback (optional) – you may want to show an error instead
+                    console.warn('Using fallback config – please check your Apps Script URL');
+                    this.masterConfig = { databaseURL: 'https://admin-efcf4-default-rtdb.europe-west1.firebasedatabase.app/' };
+                    this.init();
+                }
+            })
+            .catch(err => {
+                console.error('Failed to load master config:', err);
+                // Use fallback only if absolutely necessary
+                this.masterConfig = { databaseURL: 'https://admin-efcf4-default-rtdb.europe-west1.firebasedatabase.app/' };
+                this.init();
+            });
     }
-    
+
+    // ==============================================
+    // FETCH MASTER CONFIG FROM APPS SCRIPT
+    // ==============================================
+
+    async loadMasterConfig() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+            const response = await fetch(MASTER_CONFIG_URL, {
+                method: 'GET',
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data && data.databaseURL) {
+                return { databaseURL: data.databaseURL };
+            } else {
+                throw new Error('Invalid response format: missing databaseURL');
+            }
+        } catch (error) {
+            console.error('Error fetching master config:', error);
+            return null; // Fallback will be used
+        }
+    }
+
     // ========== TIMEOUT HELPERS (MUST KEEP) ==========
     withTimeout(promise, operationName = 'Operation') {
         let timeoutId;
@@ -59,11 +113,11 @@ class AuthModule {
     }
     
     // ==============================================
-    // (All other methods remain unchanged EXCEPT phone validation calls)
+    // INITIALIZATION
     // ==============================================
 
     init() {
-        // Initialize Firebase
+        // Initialize Firebase with the fetched config
         this.masterApp = firebase.initializeApp(this.masterConfig, "masterApp");
         this.masterDB = this.masterApp.database();
         
@@ -71,6 +125,10 @@ class AuthModule {
         this.checkAuthState();
     }
     
+    // ==============================================
+    // AUTH STATE CHECK & RESTORATION
+    // ==============================================
+
     async checkAuthState() {
         try {
             // Try to get user from localStorage first
@@ -2417,128 +2475,6 @@ class AuthModule {
         this.showAuthError('recovery-code-error', 
             'If you have lost all recovery codes, please contact support at support@xDrive.example.com ' +
             'with your account details for identity verification.');
-    }
-
-
-    setupForgotPasswordListeners() {
-        // Back to sign in links
-        document.getElementById('show-signin-from-forgot').addEventListener('click', () => this.showForm('signin'));
-        document.getElementById('show-signin-from-forgot-footer').addEventListener('click', () => this.showForm('signin'));
-        
-        // Submit button
-        document.getElementById('forgot-submit-btn').addEventListener('click', () => this.submitForgotPassword());
-        
-        // Password strength indicator for new password
-        const newPasswordInput = document.getElementById('new-password');
-        if (newPasswordInput) {
-            newPasswordInput.removeEventListener('input', this.boundPasswordStrength);
-            this.boundPasswordStrength = (e) => this.updateAuthPasswordStrength(e.target.value);
-            newPasswordInput.addEventListener('input', this.boundPasswordStrength);
-        }
-
-        // Enter key support
-        document.getElementById('forgot-email').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.submitForgotPassword();
-            }
-        });
-    }
-
-    async submitForgotPassword() {
-        const email = document.getElementById('forgot-email').value.trim();
-        
-        // Clear messages
-        this.clearAuthMessages();
-        
-        if (!email) {
-            this.showAuthError('forgot-error', 'Please enter your email address');
-            return;
-        }
-        
-        if (!this.validateEmail(email)) {
-            this.showAuthError('forgot-error', 'Please enter a valid email address');
-            return;
-        }
-        
-        try {
-            this.setButtonLoading('forgot-submit-btn', true, 'Processing...');
-            
-            const encodedEmail = this.encodeEmail(email);
-            
-            // Check if user exists with timeout
-            const userSnapshot = await this.firebaseOperation(
-                this.masterDB.ref('users/' + encodedEmail).once('value'),
-                'Checking user existence'
-            );
-            
-            if (!userSnapshot.exists()) {
-                this.showAuthError('forgot-error', 'No account found with this email');
-                this.setButtonLoading('forgot-submit-btn', false);
-                return;
-            }
-            
-            // Create password reset request
-            const requestData = {
-                email: email,
-                encodedEmail: encodedEmail,
-                requestedAt: firebase.database.ServerValue.TIMESTAMP,
-                ipAddress: await this.getClientIP(),
-                userAgent: navigator.userAgent.substring(0, 200),
-                status: 'pending',
-                token: this.generateResetToken(),
-                expiresAt: Date.now() + (24 * 60 * 60 * 1000) // 24 hours from now
-            };
-            
-            // Store in master database under userRequests
-            await this.firebaseOperation(
-                this.masterDB.ref('userRequests/passwordReset/' + encodedEmail).set(requestData),
-                'Creating reset request'
-            );
-            
-            // Also store under requests by token for easy lookup
-            await this.firebaseOperation(
-                this.masterDB.ref('resetTokens/' + requestData.token).set({
-                    email: email,
-                    encodedEmail: encodedEmail,
-                    requestedAt: requestData.requestedAt,
-                    status: 'pending'
-                }),
-                'Storing reset token'
-            );
-            
-            // Show success message
-            this.showAuthSuccess('forgot-success', 
-                'Password reset instructions have been sent to your email. ' +
-                'Check your inbox and follow the link to reset your password.');
-            
-            this.setButtonLoading('forgot-submit-btn', false);
-            
-            // Clear email field
-            document.getElementById('forgot-email').value = '';
-            
-            // Optional: Simulate sending email (in real app, you'd integrate with email service)
-            console.log('Password reset requested for:', email);
-            console.log('Reset token:', requestData.token);
-            console.log('Request data saved to database');
-            
-            // In a real application, you would:
-            // 1. Send an email with reset link containing the token
-            // 2. The link would point to: yourdomain.com/reset-password.html?token=TOKEN_HERE
-            // 3. Create a reset-password.html page that validates the token and allows password reset
-            
-        } catch (error) {
-            console.error('Forgot password error:', error);
-            
-            // Check if it's a timeout error
-            if (error.message.includes('timed out') || error.message.includes('Connection timeout')) {
-                this.showAuthError('forgot-error', 
-                    'Connection timeout. Please check your internet connection and try again.');
-            } else {
-                this.showAuthError('forgot-error', 'Error processing request: ' + error.message);
-            }
-            
-            this.setButtonLoading('forgot-submit-btn', false);
-        }
     }
 
     // Add this utility method to generate reset token
