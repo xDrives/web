@@ -2,13 +2,18 @@
 // AUTHENTICATION MODULE - INTEGRATED INTO INDEX.HTML
 // ==============================================
 
+// ==============================================
+// CONFIGURATION - FETCHED EXTERNALLY
+// ==============================================
+
+// Replace this URL with your published Google Apps Script Web App URL
+// The script should return JSON: { "databaseURL": "https://..." }
+const MASTER_CONFIG_URL = 'https://script.google.com/macros/s/AKfycbyqiLM9BedV4WkD4jPBk9y5SVem4H5oWgvkpyykPSbkZ2dcfxlMNVai4u977vcWLpv_/exec';
+
 class AuthModule {
     constructor() {
-        // Firebase configuration
-        this.masterConfig = { 
-            databaseURL: "https://admin-efcf4-default-rtdb.europe-west1.firebasedatabase.app/" 
-        };
-        
+        // Firebase configuration (will be set after fetch)
+        this.masterConfig = null;
         this.masterApp = null;
         this.masterDB = null;
         this.dbApps = [];
@@ -30,9 +35,53 @@ class AuthModule {
             console.error('PhoneValidator not loaded. Include phone-validator.js first.');
         }
         
-        this.init();
+        // Load config asynchronously, then initialize Firebase
+        this.loadMasterConfig()
+            .then(config => {
+                if (config) {
+                    this.masterConfig = config;
+                    this.init();
+                } else {
+                    // Fallback (optional) – you may want to show an error instead
+                    console.warn('Using fallback config – please check your Apps Script URL');
+                }
+            })
+            .catch(err => {
+                console.error('Failed to load master config:', err);
+            });
     }
-    
+
+    // ==============================================
+    // FETCH MASTER CONFIG FROM APPS SCRIPT
+    // ==============================================
+
+    async loadMasterConfig() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+            const response = await fetch(MASTER_CONFIG_URL, {
+                method: 'GET',
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            if (data && data.databaseURL) {
+                return { databaseURL: data.databaseURL };
+            } else {
+                throw new Error('Invalid response format: missing databaseURL');
+            }
+        } catch (error) {
+            console.error('Error fetching master config:', error);
+            return null; // Fallback will be used
+        }
+    }
+
     // ========== TIMEOUT HELPERS (MUST KEEP) ==========
     withTimeout(promise, operationName = 'Operation') {
         let timeoutId;
@@ -59,11 +108,11 @@ class AuthModule {
     }
     
     // ==============================================
-    // (All other methods remain unchanged EXCEPT phone validation calls)
+    // INITIALIZATION
     // ==============================================
 
     init() {
-        // Initialize Firebase
+        // Initialize Firebase with the fetched config
         this.masterApp = firebase.initializeApp(this.masterConfig, "masterApp");
         this.masterDB = this.masterApp.database();
         
@@ -71,6 +120,10 @@ class AuthModule {
         this.checkAuthState();
     }
     
+    // ==============================================
+    // AUTH STATE CHECK & RESTORATION
+    // ==============================================
+
     async checkAuthState() {
         try {
             // Try to get user from localStorage first
