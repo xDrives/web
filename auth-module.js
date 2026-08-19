@@ -8,7 +8,7 @@
 
 // Replace this URL with your published Google Apps Script Web App URL
 // The script should return JSON: { "databaseURL": "https://..." }
-const MASTER_CONFIG_URL = 'https://script.google.com/macros/s/AKfycbxVK0ZzzR3PuzMhVItVcvuec8wlbLnDTA8cDC1DqqaoummiecAyGF51-Jhi2a86I7gm/exec';
+const MASTER_CONFIG_URL = 'https://script.google.com/macros/s/AKfycbx5S5v40bVjRchumGiNWBjUaRtPrq0cqSSInKKVk2hkckEKYaOhqxYwH0z67AdL2ATd/exec';
 
 class AuthModule {
     constructor() {
