@@ -1,0 +1,1378 @@
+/* ============================================================
+   FILE LIBRARY MODULE – COMPLETE STYLES
+   ============================================================ */
+
+/* ---------- 1. CONTAINER & LAYOUT ---------- */
+.file-library-container {
+    padding: 0;
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.file-library-container * {
+    box-sizing: border-box;
+}
+
+.file-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--body, #12121e);
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-size: 0.65rem;
+    color: var(--text);
+    cursor: default;
+    white-space: nowrap;
+}
+
+.file-count-badge i {
+    color: var(--primary);
+}
+
+/* ---------- 2. MODULE CARD ---------- */
+.module-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--card-bg, #1a1a2e);
+    border-radius: 12px;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.module-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(59, 130, 246, 0.10);
+    flex-shrink: 0;
+}
+
+.module-icon i {
+    font-size: 22px;
+}
+
+.module-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.module-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.module-description {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #9ca3af);
+    margin-top: 2px;
+}
+
+.module-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.module-actions .btn {
+    padding: 6px 14px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+}
+
+/* ---------- 3. GENERIC SECTION CARD ---------- */
+.section-card {
+    background: var(--card-bg, #1a1a2e);
+    border-radius: 12px;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    margin: 12px 0;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.section-card-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+.section-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+    flex: 1;
+    min-width: 0;
+}
+
+.section-card-title i {
+    font-size: 18px;
+    color: var(--primary);
+}
+
+.section-card-title span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.section-card-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 2px 14px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    color: var(--text-secondary, #9ca3af);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+    white-space: nowrap;
+}
+
+.section-card-badge i {
+    color: var(--primary);
+}
+
+.section-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.section-card-content {
+    padding: 14px 16px 16px;
+}
+
+.section-card-footer {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+    background: rgba(255, 255, 255, 0.01);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.section-description {
+    font-size: 0.65rem;
+    color: var(--text-secondary, #9ca3af);
+    font-style: italic;
+    margin: 0;
+}
+
+/* ---------- 4. FOLDERS GRID ---------- */
+.folders-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+}
+
+.folder-card {
+    background: var(--card-bg, #1a1a2e);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+.folder-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.10);
+}
+
+.folder-card.active {
+    border-color: var(--folder-color, var(--primary));
+    border-width: 1px;
+    box-shadow: 0 0 0 1px var(--folder-color, var(--primary));
+}
+
+.folder-card .folder-thumbnail {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--surface-alt, rgba(255, 255, 255, 0.03));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.folder-card .folder-icon-container {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.folder-card .folder-icon-container i {
+    font-size: 28px;
+}
+
+.folder-card .folder-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px 8px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.folder-card .folder-count-badge {
+    font-weight: 600;
+    font-size: 0.55rem;
+    color: var(--text-secondary, #9ca3af);
+    white-space: nowrap;
+}
+
+.folder-card .folder-info {
+    padding: 8px 10px 10px;
+}
+
+.folder-card .folder-name {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+}
+
+.folder-card .folder-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.folder-card .folder-description {
+    font-size: 0.55rem;
+    color: var(--text-secondary, #9ca3af);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.folder-card[data-folder-id="home"] .folder-icon-container {
+    background: rgba(59, 130, 246, 0.15);
+}
+
+/* ---------- 5. FILES GRID (with date grouping) ---------- */
+.files-grid {
+    display: grid;
+    gap: 0;
+}
+
+.date-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 8px 0 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    grid-column: 1 / -1;
+    cursor: pointer;
+    user-select: none;
+}
+
+.date-group-header:hover {
+    opacity: 0.85;
+}
+
+.date-group-title {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+.date-group-title i {
+    font-size: 0.7em;
+    margin-right: 6px;
+    opacity: 0.6;
+}
+
+.date-group-count {
+    font-size: 0.65rem;
+    color: var(--text-secondary, #9ca3af);
+}
+
+.date-group-files {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+    grid-column: 1 / -1;
+    margin-bottom: 12px;
+}
+
+/* ---------- 6. FILE CARDS ---------- */
+.file-card {
+    background: var(--card-bg, #1a1a2e);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+.file-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.10);
+}
+
+.file-card .file-thumbnail {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--surface-alt, rgba(255, 255, 255, 0.03));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-card .file-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.file-card .file-icon-container {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.file-card .file-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px 8px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+}
+
+.file-card .file-extension-badge {
+    font-size: 0.5rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
+.file-card .file-info {
+    padding: 8px 10px 10px;
+}
+
+.file-card .file-name {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-card .file-name .file-ext {
+    color: var(--text-secondary, #9ca3af);
+    font-weight: 400;
+}
+
+.file-card .file-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.file-card .file-size {
+    font-size: 0.55rem;
+    color: var(--text-secondary, #9ca3af);
+}
+
+.file-card.favorite .file-overlay .file-fav-star {
+    color: #f59e0b;
+    margin-left: auto;
+    font-size: 0.7rem;
+}
+
+.file-fav-star {
+    color: #f59e0b;
+}
+
+.file-folder-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.55rem;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90px;
+}
+
+/* ---------- 7. EMPTY STATE ---------- */
+.empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--text);
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 2px dashed var(--border);
+    margin: 8px 0;
+}
+
+.empty-state-icon {
+    font-size: 2.5rem;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    font-size: 1rem;
+    margin-bottom: 4px;
+    color: var(--text);
+}
+
+.empty-state p {
+    font-size: 0.7rem;
+    margin-bottom: 12px;
+    color: var(--text-secondary, #9ca3af);
+}
+
+/* ---------- 8. UPLOAD SECTION ---------- */
+#uploadSection.section-card {
+    margin: 12px 0;
+}
+
+#uploadSection .section-card-header {
+    background: rgba(59, 130, 246, 0.04);
+}
+
+/* ---------- FILE PREVIEW (Upload) ---------- */
+.file-preview {
+    background: transparent;
+    animation: slideUp 0.25s ease;
+}
+
+/* Preview grid */
+.file-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.file-preview-grid::-webkit-scrollbar {
+    width: 4px;
+}
+
+.file-preview-grid::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 3px;
+}
+
+.file-preview-grid::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+}
+
+/* ---------- PREVIEW CARD (shared by file-preview-item and add-more-tile) ---------- */
+.file-preview-item,
+.add-more-tile {
+    background: var(--card-bg, #1a1a2e);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+    transition: all 0.2s ease;
+    position: relative;
+    animation: slideUp 0.2s ease;
+}
+
+.file-preview-item:hover,
+.add-more-tile:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+}
+
+/* Thumbnail area */
+.file-preview-item .preview-thumbnail,
+.add-more-tile .preview-thumbnail {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--surface-alt, rgba(255, 255, 255, 0.03));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-preview-item .preview-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Icon container */
+.file-preview-item .preview-icon-container,
+.add-more-tile .preview-icon-container {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.file-preview-item .preview-icon-container i {
+    font-size: 22px;
+}
+
+/* Add-more tile specific icon styling */
+.add-more-tile .preview-icon-container {
+    border-style: dashed;
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.06);
+    transition: all 0.2s ease;
+}
+
+.add-more-tile:hover .preview-icon-container {
+    background: rgba(59, 130, 246, 0.12);
+    transform: scale(1.05);
+}
+
+.add-more-tile .preview-icon-container i {
+    font-size: 22px;
+    color: var(--primary);
+}
+
+/* Overlay with extension */
+.file-preview-item .preview-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px 8px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    pointer-events: none;
+}
+
+.file-preview-item .preview-extension-badge {
+    font-size: 0.5rem;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
+/* Remove button */
+.file-preview-item .preview-remove {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ef4444;
+    backdrop-filter: blur(4px);
+    border: none;
+    color: #fff;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 3;
+}
+
+/* Info area */
+.file-preview-item .preview-info,
+.add-more-tile .preview-info {
+    padding: 6px 8px 8px;
+}
+
+.file-preview-item .preview-name,
+.add-more-tile .preview-name {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    line-height: 1.3;
+}
+
+.add-more-tile .preview-name {
+    color: var(--primary);
+}
+
+.file-preview-item .preview-meta,
+.add-more-tile .preview-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.file-preview-item .preview-size,
+.add-more-tile .preview-size {
+    font-size: 0.55rem;
+    color: var(--text-secondary, #9ca3af);
+}
+
+/* Add-more tile - no aspect-ratio override needed, inherits from shared styles */
+.add-more-tile {
+    cursor: pointer;
+}
+
+/* ---------- UPLOAD PROGRESS ---------- */
+#uploadSection .upload-progress {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: rgba(59, 130, 246, 0.04);
+    border-radius: 10px;
+    border: 1px solid rgba(59, 130, 246, 0.08);
+    animation: slideUp 0.3s ease;
+}
+
+#uploadSection .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#uploadSection .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #60a5fa);
+    border-radius: 6px;
+    width: 0%;
+    transition: width 0.35s ease;
+    position: relative;
+}
+
+#uploadSection .progress-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: progress-shine 1.8s infinite;
+}
+
+#uploadSection .progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 0.7rem;
+    color: var(--text-secondary, #9ca3af);
+}
+
+#uploadSection #progressPercent {
+    font-weight: 600;
+    color: var(--primary);
+    background: rgba(59, 130, 246, 0.10);
+    padding: 1px 10px;
+    border-radius: 12px;
+    font-family: monospace;
+}
+
+#uploadSection .upload-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+.progress-detail {
+    font-size: 0.6rem;
+    color: var(--text-secondary, #9ca3af);
+    margin-top: 4px;
+    text-align: right;
+    font-family: monospace;
+}
+
+/* Upload actions row */
+.upload-actions-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+}
+
+/* ---------- 9. FILE VIEW SECTION (inline) ---------- */
+#fileViewSection.section-card {
+    margin: 12px 0;
+}
+
+#fileViewSection .section-card-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+#fileViewSection .section-card-title {
+    flex: 1;
+    min-width: 0;
+}
+
+#fileViewSection .section-card-title span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#fileViewSection .section-card-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.65rem;
+    white-space: nowrap;
+}
+
+.close-file-view {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #9ca3af);
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: background 0.2s;
+}
+
+.close-file-view:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.file-view-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100px;
+    max-height: 60vh;
+    overflow: hidden;
+    border-radius: 4px;
+    margin: 4px 0;
+}
+
+.file-preview-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+}
+
+/* File Preview Types */
+.file-preview-image {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-image-full {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.file-preview-video {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-video-full {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 4px;
+}
+
+.file-preview-audio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 20px;
+    width: 100%;
+}
+
+.file-preview-audio .audio-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.10);
+    border: 2px solid rgba(139, 92, 246, 0.20);
+}
+
+.preview-audio-full {
+    width: 100%;
+    max-width: 400px;
+}
+
+.file-preview-audio .audio-filename {
+    font-size: 0.8rem;
+    color: var(--text);
+    font-weight: 500;
+}
+
+.file-preview-text,
+.file-preview-document,
+.file-preview-archive,
+.file-preview-unknown {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.file-preview-text .text-icon-container,
+.file-preview-document .doc-icon-container,
+.file-preview-archive .archive-icon-container,
+.file-preview-unknown .unknown-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+.file-preview-text .text-filename,
+.file-preview-document .doc-filename,
+.file-preview-archive .archive-filename,
+.file-preview-unknown .unknown-filename {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.file-preview-text .text-file-info,
+.file-preview-document .doc-file-info,
+.file-preview-archive .archive-file-info,
+.file-preview-unknown .unknown-file-info {
+    font-size: 0.65rem;
+    color: var(--text-secondary, #9ca3af);
+}
+
+/* File description */
+.file-description-container {
+    position: relative;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.file-description-input-view {
+    width: 100%;
+    padding: 6px 10px;
+    padding-right: 70px;
+    background: var(--surface-alt, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.75rem;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.file-description-input-view:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.description-char-count-view {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.6rem;
+    color: var(--text-secondary, #9ca3af);
+    pointer-events: none;
+}
+
+/* File view actions */
+.file-view-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: flex-end;
+}
+
+.file-view-actions .btn-icon {
+    background: var(--surface-alt, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+    color: var(--text);
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.file-view-actions .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.file-view-actions .btn-icon:active {
+    transform: scale(0.95);
+}
+
+/* File delete panel */
+.file-delete-panel {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(239, 68, 68, 0.08);
+    border-radius: 6px;
+    border-left: 3px solid var(--danger, #ef4444);
+    animation: slideUp 0.3s ease;
+}
+
+/* ---------- MOVE-TO-FOLDER PANEL ---------- */
+.move-to-folder-panel {
+    padding: 12px;
+    background: rgba(59, 130, 246, 0.06);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary);
+}
+
+.folder-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.folder-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.15s;
+}
+
+.folder-picker-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--border);
+}
+
+.folder-picker-item.selected {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: var(--primary);
+}
+
+/* ---------- 10. LOADING OVERLAY ---------- */
+.file-library-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.file-library-loading-content {
+    background: transparent;
+    border-radius: 16px;
+    padding: 32px 40px;
+    text-align: center;
+    min-width: 280px;
+    max-width: 360px;
+    border: none;
+    animation: slideUp 0.3s ease;
+}
+
+.file-library-loading-spinner {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 20px;
+    border: 3px solid rgba(59, 130, 246, 0.2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.file-library-loading-message {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 16px;
+}
+
+.file-library-loading-progress {
+    width: 100%;
+    height: 4px;
+    background: rgba(59, 130, 246, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 16px 0 12px;
+}
+
+.file-library-loading-progress-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.file-library-loading-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shine 1.5s infinite;
+}
+
+.file-library-loading-detail {
+    font-size: 0.7rem;
+    color: var(--text-secondary, #9ca3af);
+    margin-top: 8px;
+    font-family: monospace;
+}
+
+/* ---------- 11. FORM ---------- */
+.form-group {
+    margin-bottom: 12px;
+}
+
+.form-label {
+    display: block;
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+}
+
+.form-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--surface-alt, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+/* ---------- 12. IMAGE ZOOM ---------- */
+.image-zoom-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    cursor: zoom-in;
+    min-height: 200px;
+}
+
+.image-zoom-container img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.2s ease;
+    transform-origin: center center;
+}
+
+.image-zoom-controls {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    z-index: 10;
+}
+
+.image-zoom-controls .btn-icon {
+    background: transparent;
+    border: none;
+    color: #fff;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 16px;
+}
+
+.image-zoom-controls .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.image-zoom-controls .btn-icon:active {
+    transform: scale(0.9);
+}
+
+/* ---------- 13. ANIMATIONS ---------- */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes progress-shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes warningPulse {
+    0% { border-color: rgba(239, 68, 68, 0.3); }
+    50% { border-color: rgba(239, 68, 68, 0.8); }
+    100% { border-color: rgba(239, 68, 68, 0.3); }
+}
+
+/* ---------- 14. MISC UTILITIES ---------- */
+.btn-icon i {
+    pointer-events: none;
+}
+
+.btn,
+.btn-icon,
+.file-card {
+    position: relative;
+    z-index: 1;
+}
+
+/* Drag and drop */
+.drag-over {
+    border-color: var(--primary) !important;
+    background: rgba(59, 130, 246, 0.05) !important;
+}
+
+
+
+
+
+
+
+
+/* ---------- 6b. ADD FILE TILE (in files grid) ---------- */
+.add-file-tile {
+    background: var(--card-bg, #1a1a2e);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px dashed var(--primary);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    background: rgba(59, 130, 246, 0.04);
+}
+
+.add-file-tile:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.08);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.15);
+}
+
+.add-file-tile:active {
+    transform: scale(0.98);
+}
+
+.add-file-tile .add-file-thumbnail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 16px 8px 8px;
+}
+
+.add-file-tile .add-file-icon-container {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed var(--primary);
+    background: rgba(59, 130, 246, 0.06);
+    transition: all 0.25s ease;
+}
+
+.add-file-tile:hover .add-file-icon-container {
+    background: rgba(59, 130, 246, 0.15);
+    transform: scale(1.1);
+    border-style: solid;
+}
+
+.add-file-tile .add-file-icon-container i {
+    font-size: 20px;
+    color: var(--primary);
+}
+
+.add-file-tile .add-file-info {
+    padding: 0 8px 12px;
+    text-align: center;
+    width: 100%;
+}
+
+.add-file-tile .add-file-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* ---------- 6b. ADD FILE TILE (reuses .add-more-tile styles) ---------- */
+.add-file-tile {
+    /* Inherits everything from .add-more-tile */
+    /* Only ensure it works inside the files grid */
+    width: 100%;
+    aspect-ratio: auto;
+}
+
+.add-file-tile .preview-thumbnail {
+    aspect-ratio: 1;
+}
+
+.add-file-tile .preview-name {
+    color: var(--primary);
+}
+
+.add-file-tile .preview-size {
+    color: var(--text-secondary, #9ca3af);
+}
+
+
+
+
+
+
